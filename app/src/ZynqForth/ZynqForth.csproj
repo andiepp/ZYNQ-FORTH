@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>ZynqForth</RootNamespace>
+    <AssemblyName>ZynqForth</AssemblyName>
+    <AssemblyTitle>ZYNQ-FORTH</AssemblyTitle>
+    <Description>ZYNQ-FORTH: terminal, editor, dictionary and board view for the HF16 Forth on the Arty Z7-20.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ZynqForth.Core\ZynqForth.Core.csproj" />
+  </ItemGroup>
+
+</Project>

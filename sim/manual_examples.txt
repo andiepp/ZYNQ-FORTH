@@ -1,0 +1,88 @@
+2 3 + .
+: square dup * ;
+7 square .
+70000 .
+1 2 3 rot .s
+2drop drop
+-7 2 / . -7 2 mod . -7 2 u/mod .s 2drop -8 2/ . -32768 abs u.
+-1 1 u< .
+variable x  5 x !  3 x +!  x ?
+create table 1 , 2 , 4 , 8 ,
+table 2 cells + ?
+: hello ." Hello, Arty!" cr ;
+hello
+hex 255 . decimal 5 2 base ! . decimal
+5 led! led@ . 9 rgb! rgb@ .
+variable count
+10 constant ten
+create buffer 20 allot
+: bump 1 count +! ;
+bump bump count ? ten .
+: sq dup * ;
+: sq sq 1+ ;
+5 sq .
+: fact ( n -- n! ) dup 1 > if dup 1- recurse * then ;
+7 fact .
+: evens 10 0 do i . 2 +loop ;
+evens
+: table 3 1 do 3 1 do j i * . loop loop ;
+table
+: find3 10 0 do i 3 = if ." found" unloop exit then loop ." none" ;
+find3
+: five [ 2 3 + ] literal ;
+five .
+' five execute .
+: shout ." loud" ; immediate
+: quiet shout ;
+: count16 16 0 do i led! 250 ms loop 0 led! ;
+: mirror begin btn@ led! key? until key drop 0 led! ;
+: delay sw@ 1+ 100 * ms ;
+: runner begin 4 0 do 1 i lshift led! delay loop key? until key drop 0 led! ;
+: colours 8 1 do i dup 3 lshift or rgb! 400 ms loop 0 rgb! ;
+colours rgb@ .
+: wait-btn begin btn@ until ;
+: wait-free begin btn@ 0= until ;
+: react
+  ." wait for the LEDs..." cr
+  2000 ms 15 led! ms@
+  wait-btn ms@ swap - 0 led!
+  ." reaction time " . ." ms" cr
+  wait-free ;
+variable presses
+: btn0? btn@ 1 and ;
+: count-press 1 presses +! presses @ led! begin btn0? 0= until ;
+: counter
+  0 presses !
+  begin btn0? if count-press then key? until key drop
+  ." BTN0 pressed " presses ? ." times" cr ;
+.s
+3000 1000 4096 */ . -1 -1 um* .s 2drop
+5 0 20 within . 20 0 20 within .
+13 output  13 high
+13 pin@ .
+13 low  13 input
+2 pin@ .
+255 $8014 !
+170 $8012 !
+$8010 @ 255 and .
+0 $8014 !
+.temp
+0 mv@ .
+1 supply@ . 2 supply@ .
+14 output  14 high  10 ms  0 mv@ .
+14 low  10 ms  0 mv@ .  14 input
+: supplies 1 supply@ . 2 supply@ . 6 supply@ . 13 supply@ . 14 supply@ . ;
+supplies .temp
+: thermo begin .temp cr 1000 ms key? until key drop ;
+: blink13 13 output begin 13 toggle 250 ms key? until key drop 13 low ;
+: watch2 begin 2 pin@ 0= 1 and led! key? until key drop 0 led! ;
+0 output  0 high  1 pin@ .  0 low  1 pin@ .  0 input
+: volts begin 0 mv@ . ." mV" cr 500 ms key? until key drop ;
+: level ( -- n ) 0 adc@ 820 / 1 swap lshift 1- ;
+: bar begin level led! 50 ms key? until key drop 0 led! ;
+bar
+x
+led@ .
+: all6 6 0 do i mv@ . loop ;
+: drive dup output dup high 50 ms all6 input ;
+14 drive
