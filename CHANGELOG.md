@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.2 — unreleased
+## 2.2 — 2026-11-02
 
 - Pattern generator (docs/PatternGenerator.md): 16 channels on Pmod JA and JB, played in
   5 ns steps from its own 200 MHz clock; 4096 steps with loops nested 4 deep, jumps, waits
