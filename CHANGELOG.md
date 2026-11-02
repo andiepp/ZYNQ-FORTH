@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — 1.0
+## 1.0 — 2026-11-02
 
 First version, derived from the HF16 Forth laboratory.
 
