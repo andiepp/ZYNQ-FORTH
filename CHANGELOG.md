@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1 — unreleased
+
+- Firmware 2.1: HASE mode gains device function 0x43, the board registers the `board`
+  request reads (LEDs, buttons, switches, shield pins, PWM, XADC), for the HASE panel's
+  board view. Everything else unchanged.
+
 ## 2.0 — 2026-11-02
 
 - Firmware 2.0: one firmware for both uses. Besides the terminal and the app's service

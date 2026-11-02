@@ -1,6 +1,6 @@
 # ZYNQ-FORTH serial protocol
 
-Protocol version 1, firmware 2.0.
+Protocol version 1, firmware 2.1.
 
 The board's USB serial port (the Arty Z7's FTDI channel B, 115200 baud, 8N1, no handshake)
 carries two things at once:
@@ -28,7 +28,7 @@ MCNF; the board switches by itself (see "HASE mode" at the end).
 At every start the ARM prints a line before Forth's banner:
 
 ```
-[zynq-forth] 2.0, kernel 2398 words loaded and verified
+[zynq-forth] 2.1, kernel 2398 words loaded and verified
 [zynq-forth] autostart: 195 bytes of saved source
 ```
 
@@ -170,10 +170,11 @@ terminal program or the app once it sends anything. The HASE host waits until th
 been quiet for 200 ms before its first frame, which leaves Forth's start-up output to the
 terminal. A stray `0xA1` typed into a terminal only shows a `!`.
 
-In HASE mode the node has type `AE.07.30.80` and reports firmware 2.0. Its frames, the
-device functions 0x15 (version), 0x30–0x33 (status, restart, input, output), 0x40–0x42
-(dictionary and data stack) and 0x50–0x55 (saved source) are those of HASE-Lab's Forth-Lab
-family; the saved source is the same flash sector the `store` request writes.
+In HASE mode the node has type `AE.07.30.80` and reports its firmware version (2.1). Its
+frames and device functions are those of HASE-Lab's Forth-Lab family: 0x15 (version),
+0x30–0x33 (status, restart, input, output), 0x40–0x42 (dictionary and data stack), 0x43
+(since 2.1: the registers of the `board` request, binary) and 0x50–0x55 (saved source).
+The saved source is the same flash sector the `store` request writes.
 
 ## Example in Python
 

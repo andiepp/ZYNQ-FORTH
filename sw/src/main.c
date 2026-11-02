@@ -41,9 +41,9 @@
 #include "forth_image.h"
 #include "mcnf_node.h"
 
-#define FIRMWARE_VERSION    "2.0"
+#define FIRMWARE_VERSION    "2.1"
 #define FIRMWARE_MAJOR      2               /* as the HASE node reports it (function 0x15) */
-#define FIRMWARE_MINOR      0
+#define FIRMWARE_MINOR      1
 #define PROTOCOL_VERSION    1
 
 #define UART                STDIN_BASEADDRESS   /* PS UART0, 115200 8N1 from the BSP */
@@ -92,6 +92,7 @@
 #define FN_DICT_SNAPSHOT    0x40
 #define FN_DICT_PAGE        0x41
 #define FN_DATA_STACK       0x42
+#define FN_BOARD            0x43            /* the board registers, as the app's board request */
 #define FN_SOURCE_INFO      0x50
 #define FN_SOURCE_WRITE     0x51
 #define FN_SOURCE_COMMIT    0x52
@@ -781,6 +782,20 @@ static u8 device(u8 function, const u8 *params, u8 param_length, u8 response_len
         *payload_length = 1 + 2 * STACK_MAX;
         return MCNF_ERR_NONE;
     }
+
+    /* the registers of the board request: board (u32), ports 0..2 (u32), PWM (u32), then
+       XADC status registers 0..31 (u16) */
+    case FN_BOARD:
+        mcnf_write_u32(payload, Xil_In32(FORTH_BASE + REG_BOARD));
+        for (i = 0; i < 3; i++)
+            mcnf_write_u32(payload + 4 + 4 * i, Xil_In32(FORTH_BASE + REG_PORT0 + 4 * i));
+        mcnf_write_u32(payload + 16, Xil_In32(FORTH_BASE + REG_PWM));
+        for (i = 0; i < 32; i++) {
+            Xil_Out32(FORTH_BASE + REG_XADC, i);
+            mcnf_write_u16(payload + 20 + 2 * i, Xil_In32(FORTH_BASE + REG_XADC) & 0xFFFF);
+        }
+        *payload_length = 84;
+        return MCNF_ERR_NONE;
 
     case FN_SOURCE_INFO:
         payload[0] = stored_state;
