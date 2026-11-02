@@ -8,7 +8,7 @@ namespace ZynqForth.Controls;
 
 /// <summary>
 /// The Arty Z7-20 as Forth sees it: LD0..LD3, the RGB LEDs, BTN0..BTN3, SW0/SW1, the shield
-/// pins (level, direction, PWM) and the analog readings. Drawn at a fixed size; put it in
+/// pins (level, direction, PWM), the analog readings and the pattern generator's Pmod pins. Drawn at a fixed size; put it in
 /// a Viewbox to scale it. Colours come from the skin (Zf.Board*, Zf.Led*, Zf.Pin*).
 /// </summary>
 public sealed class BoardView : FrameworkElement
@@ -52,6 +52,51 @@ public sealed class BoardView : FrameworkElement
 
         DrawBoardIo(dc, s, text, outline);
         DrawShield(dc, s, text, outline);
+        DrawPmods(dc, s, text, outline);
+    }
+
+    /// <summary>Pmod JA (channels 0..7) and JB (8..15) as the generator drives them.</summary>
+    private void DrawPmods(DrawingContext dc, BoardState? s, Brush text, Pen outline)
+    {
+        Brush driven = Skins.Brush(this, "Zf.PinDriven", Brushes.OrangeRed);
+        Brush drivenLow = Skins.Brush(this, "Zf.PinDrivenLow", Brushes.Maroon);
+        Brush off = Skins.Brush(this, "Zf.PinLow", Brushes.DimGray);
+        Brush pcb = Skins.Brush(this, "Zf.BoardPcb", Brushes.DarkGreen);
+        PatternStatus? pg = s?.Pattern;
+
+        const double left = 806;
+        Label(dc, "PMOD · PATTERN", left - 20, 34, text, 10);
+        foreach ((string name, int first, double y) in new[] { ("JA", 0, 56.0), ("JB", 8, 112.0) })
+        {
+            Label(dc, name, left - 20, y + 11, text, 10);
+            // pins 1..4 over 7..10, then GND and VCC at 5/11 and 6/12
+            for (int row = 0; row < 2; row++)
+            {
+                for (int col = 0; col < 6; col++)
+                {
+                    var rect = new Rect(left + col * 22, y + row * 22, 18, 18);
+                    if (col >= 4)
+                    {
+                        dc.DrawRectangle(pcb, outline, rect);
+                        Label(dc, col == 4 ? "G" : "V", rect.X + 9, rect.Y + 3, text, 9, align: TextAlignment.Center);
+                        continue;
+                    }
+
+                    int channel = first + row * 4 + col;
+                    bool enabled = pg is not null && (pg.Enabled & (1 << channel)) != 0;
+                    bool level = pg is not null && (pg.Levels & (1 << channel)) != 0;
+                    dc.DrawRectangle(!enabled ? off : level ? driven : drivenLow, outline, rect);
+                    Label(dc, channel.ToString(CultureInfo.InvariantCulture), rect.X + 9, rect.Y + 3, text, 9,
+                          align: TextAlignment.Center);
+                }
+            }
+        }
+
+        if (s is not null)
+        {
+            Label(dc, pg is null ? "pattern generator: firmware 2.2 needed" : "pattern " + pg.Summary,
+                  Width0 - 16, 164, text, 11, align: TextAlignment.Right);
+        }
     }
 
     private void DrawBoardIo(DrawingContext dc, BoardState? s, Brush text, Pen outline)

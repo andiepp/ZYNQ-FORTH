@@ -37,6 +37,7 @@ public sealed class MainViewModel : ObservableObject
     private string? selectedPort;
     private string selectedSkin;
     private bool showBoard;
+    private bool showPattern;
     private bool isConnected;
     private int busyCount;
     private bool polling;
@@ -62,8 +63,10 @@ public sealed class MainViewModel : ObservableObject
         this.preferences = preferences;
         selectedSkin = Skins.Normalize(preferences["skin"]);
         showBoard = preferences["board"] is { } b ? b == "on" : Skins.ShowsBoard(selectedSkin);
+        showPattern = preferences["editor"] == "pattern";
 
         Editor.Message += SetStatus;
+        Patterns.Message += SetStatus;
         Words = CollectionViewSource.GetDefaultView(allWords);
         Words.Filter = item => item is ForthWord word &&
                                (WordFilter.Length == 0 || word.Name.Contains(WordFilter, StringComparison.OrdinalIgnoreCase));
@@ -79,6 +82,11 @@ public sealed class MainViewModel : ObservableObject
         LoadSourceCommand = new RelayCommand(() => _ = LoadSourceAsync(), () => CanTalk && SourceStored);
         EraseSourceCommand = new RelayCommand(() => _ = EraseSourceAsync(), () => CanTalk && SourceStored);
         InsertWordCommand = new RelayCommand(p => { if (p is ForthWord w) { InputLine = (InputLine + " " + w.Name).TrimStart(); } });
+        PatternLoadCommand = new RelayCommand(() => { if (Patterns.ToForth(start: true) is { } forth) { _ = RunTextAsync(forth); } },
+                                              () => CanTalk && !Patterns.HasErrors);
+        PatternStartCommand = new RelayCommand(() => client?.SendLine("pg-start"), () => IsConnected);
+        PatternStopCommand = new RelayCommand(() => client?.SendLine("pg-stop"), () => IsConnected);
+        PatternToEditorCommand = new RelayCommand(PatternToEditor, () => !Patterns.HasErrors);
 
         flushTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(40), DispatcherPriority.Background, (_, _) => FlushTerminal(),
                                          Dispatcher.CurrentDispatcher);
@@ -98,6 +106,8 @@ public sealed class MainViewModel : ObservableObject
     public event Action<string>? TerminalText;
 
     public EditorViewModel Editor { get; } = new();
+
+    public PatternEditorViewModel Patterns { get; } = new();
 
     public ObservableCollection<string> Ports { get; } = [];
 
@@ -129,10 +139,22 @@ public sealed class MainViewModel : ObservableObject
 
     public RelayCommand InsertWordCommand { get; }
 
+    public RelayCommand PatternLoadCommand { get; }
+
+    public RelayCommand PatternStartCommand { get; }
+
+    public RelayCommand PatternStopCommand { get; }
+
+    public RelayCommand PatternToEditorCommand { get; }
+
     public IUserDialogs? Dialogs
     {
         get => Editor.Dialogs;
-        set => Editor.Dialogs = value;
+        set
+        {
+            Editor.Dialogs = value;
+            Patterns.Dialogs = value;
+        }
     }
 
     public string? SelectedPort
@@ -173,10 +195,34 @@ public sealed class MainViewModel : ObservableObject
             if (Set(ref showBoard, value))
             {
                 preferences["board"] = value ? "on" : "off";
-                boardTimer.IsEnabled = value && IsConnected;
+                UpdateBoardTimer();
             }
         }
     }
+
+    /// <summary>The editor area shows the pattern editor instead of the source.</summary>
+    public bool ShowPattern
+    {
+        get => showPattern;
+        set
+        {
+            if (Set(ref showPattern, value))
+            {
+                preferences["editor"] = value ? "pattern" : "source";
+                OnPropertyChanged(nameof(ShowSource));
+                UpdateBoardTimer();
+            }
+        }
+    }
+
+    public bool ShowSource
+    {
+        get => !showPattern;
+        set => ShowPattern = !value;
+    }
+
+    /// <summary>The board is read while it is shown, and for the pattern editor's playing step.</summary>
+    private void UpdateBoardTimer() => boardTimer.IsEnabled = (ShowBoard || ShowPattern) && IsConnected;
 
     public bool IsConnected
     {
@@ -339,7 +385,7 @@ public sealed class MainViewModel : ObservableObject
             SetStatus("Connected. Type Forth below, or run the editor's text with F5.", false);
             client.SendLine("");    // Forth answers with its prompt
             statusTimer.Start();
-            boardTimer.IsEnabled = ShowBoard;
+            UpdateBoardTimer();
             await PollStatusAsync();
             await RefreshWordsAsync();
             await RefreshStackAsync();
@@ -363,6 +409,7 @@ public sealed class MainViewModel : ObservableObject
         ConnectionText = "Not connected";
         ForthState = "";
         Board = null;
+        Patterns.PlayingStep = null;
         FlushTerminal();
         SetStatus(message, error);
     }
@@ -666,6 +713,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             Board = await client.BoardAsync();
+            Patterns.PlayingStep = Board.Pattern is { Running: true } pg ? pg.Step : null;
         }
         catch (Exception exception) when (exception is LinkException or BoardRefusedException or FormatException)
         {
@@ -722,6 +770,27 @@ public sealed class MainViewModel : ObservableObject
 
             CommandManagerInvalidate();
         }
+    }
+
+    /// <summary>The pattern's Forth into the source editor (appended when it holds text).</summary>
+    private void PatternToEditor()
+    {
+        if (Patterns.ToForth(start: true) is not { } forth)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Editor.Text))
+        {
+            Editor.Load(forth, null);
+        }
+        else
+        {
+            Editor.Text = Editor.Text.TrimEnd() + Environment.NewLine + Environment.NewLine + forth;
+        }
+
+        ShowPattern = false;
+        SetStatus("The pattern is in the source editor as Forth: Run all loads it, Store editor saves it on the board.", false);
     }
 
     private void SetStatus(string message, bool error)

@@ -1,9 +1,9 @@
 # Pattern generator — design
 
 Status: **in progress** (2026-11-02). The FPGA part (`rtl/patgen.v`, `sim/tb_patgen.v`), the
-kernel words and the firmware's `board` line (firmware 2.2) are built and tested on the board
-over JTAG; the app (live view, editor), the manual and a scope check of the 5 ns edges are still
-to come.
+kernel words, the firmware's `board` line (firmware 2.2) and the app's live view and pattern
+editor are built and tested on the board over JTAG; the manual chapter and a scope check of the
+5 ns edges are still to come.
 
 A 16-channel digital pattern generator in the PL. Forth (or the app's graphical editor, which
 writes Forth) loads a pattern and starts it; from then on the hardware plays it at a fixed 5 ns

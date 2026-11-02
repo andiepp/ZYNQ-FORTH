@@ -33,6 +33,14 @@ public partial class MainWindow : Window, IUserDialogs
             }
         };
         UpdateTitle();
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(MainViewModel.ShowPattern))
+            {
+                UpdateEditorWidth();
+            }
+        };
+        UpdateEditorWidth();
 
         InputBindings.Add(new KeyBinding(viewModel.Editor.SaveCommand, Key.S, ModifierKeys.Control));
         InputBindings.Add(new KeyBinding(viewModel.RunEditorCommand, Key.F5, ModifierKeys.Control));
@@ -47,7 +55,7 @@ public partial class MainWindow : Window, IUserDialogs
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (!ViewModel.Editor.ConfirmDiscard())
+        if (!ViewModel.Editor.ConfirmDiscard() || !ViewModel.Patterns.ConfirmDiscard())
         {
             e.Cancel = true;
             return;
@@ -58,6 +66,13 @@ public partial class MainWindow : Window, IUserDialogs
     }
 
     private void UpdateTitle() => Title = $"{ViewModel.Editor.Title} — ZYNQ-FORTH";
+
+    /// <summary>The timing diagram wants room: the editor column takes more of it beside the terminal.</summary>
+    private void UpdateEditorWidth()
+    {
+        EditorColumn.Width = new GridLength(ViewModel.ShowPattern ? 1.8 : 1, GridUnitType.Star);
+        TerminalColumn.Width = new GridLength(1, GridUnitType.Star);
+    }
 
     /// <summary>A dark window frame for the dark skins (Windows 10 20H1 and later).</summary>
     private void UpdateTitleBar()
@@ -220,7 +235,11 @@ public partial class MainWindow : Window, IUserDialogs
 
     string? IUserDialogs.SaveFile(string title, string filter, string suggestedName)
     {
-        var dialog = new SaveFileDialog { Title = title, Filter = filter, FileName = suggestedName, DefaultExt = ".fs" };
+        string extension = Path.GetExtension(suggestedName);
+        var dialog = new SaveFileDialog
+        {
+            Title = title, Filter = filter, FileName = suggestedName, DefaultExt = extension.Length > 0 ? extension : ".fs",
+        };
         return dialog.ShowDialog(this) == true ? dialog.FileName : null;
     }
 

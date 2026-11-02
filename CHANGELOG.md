@@ -10,7 +10,14 @@
   `pg-start` `pg-stop` `pg-trig` `pg-enable` `pg-idle` `pg-trigger` `pg-status` `pg-pc`
   `pg-out@` `pg-sync`.
 - Firmware 2.2: the `board` answer gains a `pg` line (protocol 1; older apps ignore it).
-- Still to come before the release: the app's live view and pattern editor, the manual.
+- App 2.2: a **Pattern** tab beside the source editor: a timing diagram of the 16 channels
+  (click or drag to set levels, select steps in the header), durations in ns/µs/ms/s,
+  repeats (nested up to four deep), wait steps, trigger source and edge, what happens at the
+  end, channel names, enables and idle levels; it checks the pattern against the generator's
+  limits and timing rule, loads it as Forth (**Load & start**) or puts the Forth into the
+  source editor. Patterns are saved as `.pattern` files (examples in `examples/patterns`).
+  The board view shows Pmod JA/JB as the generator drives them and its state.
+- Still to come before the release: the manual chapter.
 
 ## 2.1 — 2026-11-02
 

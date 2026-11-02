@@ -6,6 +6,41 @@ namespace ZynqForth.Board;
 public sealed record ShieldPin(int Number, string Label, bool Level, bool Driven, int? PwmChannel);
 
 /// <summary>
+/// The pattern generator in the <c>board</c> answer's <c>pg</c> line (firmware 2.2): its current
+/// step, status bits, channel enable mask and output levels (docs/Protocol.md).
+/// </summary>
+public sealed record PatternStatus(int Step, int Flags, ushort Enabled, ushort Levels)
+{
+    public bool Running => (Flags & 0x01) != 0;
+
+    public bool Waiting => (Flags & 0x02) != 0;
+
+    public bool Ended => (Flags & 0x04) != 0;
+
+    /// <summary>A step ran late: the generator could not fetch the next one in time.</summary>
+    public bool Late => (Flags & 0x10) != 0;
+
+    /// <summary>Loops were nested more than four deep.</summary>
+    public bool TooDeep => (Flags & 0x20) != 0;
+
+    /// <summary>"stopped", "running · step 12", "waiting for the trigger · step 0", "ended", plus flags.</summary>
+    public string Summary
+    {
+        get
+        {
+            string state = Waiting ? $"waiting for the trigger · step {Step}"
+                : Running ? $"running · step {Step}"
+                : Ended ? "ended"
+                : "stopped";
+            return state + (Late ? " · late" : "") + (TooDeep ? " · loops too deep" : "");
+        }
+    }
+
+    public static PatternStatus FromRegisters(uint status, uint output) =>
+        new((int)((status >> 16) & 0xFFF), (int)(status & 0x7F), (ushort)(output >> 16), (ushort)output);
+}
+
+/// <summary>
 /// The <c>board</c> answer decoded: LEDs, RGB LEDs, buttons, switches, shield pins, PWM
 /// channels and the XADC (register layout in docs/design.md).
 /// </summary>
@@ -19,9 +54,10 @@ public sealed class BoardState
 
     private readonly ushort[] xadc;
 
-    private BoardState(uint board, uint[] ports, uint pwm, ushort[] xadc)
+    private BoardState(uint board, uint[] ports, uint pwm, ushort[] xadc, PatternStatus? pattern)
     {
         this.xadc = xadc;
+        Pattern = pattern;
         Leds = (int)(board & 0xF);
         Rgb = (int)((board >> 4) & 0x3F);
         Buttons = (int)((board >> 16) & 0xF);
@@ -63,6 +99,9 @@ public sealed class BoardState
 
     public IReadOnlyList<ShieldPin> Pins { get; }
 
+    /// <summary>The pattern generator; null with firmware before 2.2.</summary>
+    public PatternStatus? Pattern { get; }
+
     /// <summary>Chip temperature in °C.</summary>
     public double Temperature => Code(0) * 503.975 / 4096 - 273.15;
 
@@ -97,7 +136,10 @@ public sealed class BoardState
             throw new FormatException("incomplete board answer");
         }
 
-        return new BoardState(board, ports, pwm, xadc);
+        PatternStatus? pattern = lines.TryGetValue("pg", out string[]? pg) && pg.Length >= 2
+            ? PatternStatus.FromRegisters(Hex(pg[0]), Hex(pg[1]))
+            : null;
+        return new BoardState(board, ports, pwm, xadc, pattern);
     }
 
     /// <summary>The 12-bit result of an XADC status register.</summary>

@@ -38,37 +38,157 @@
         <!-- editor | terminal | stack, dictionary, saved source -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="240" />
+                <ColumnDefinition x:Name="EditorColumn" Width="*" MinWidth="240" />
                 <ColumnDefinition Width="6" />
-                <ColumnDefinition Width="*" MinWidth="240" />
+                <ColumnDefinition x:Name="TerminalColumn" Width="*" MinWidth="240" />
                 <ColumnDefinition Width="6" />
                 <ColumnDefinition Width="290" MinWidth="200" />
             </Grid.ColumnDefinitions>
 
-            <!-- editor -->
+            <!-- editor: Forth source or pattern -->
             <Border Grid.Column="0" Style="{StaticResource Zf.PanelBox}">
                 <DockPanel>
-                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
-                        <TextBlock DockPanel.Dock="Left" Text="{Binding Editor.Title}" Style="{StaticResource Zf.Heading}" Margin="0,0,10,0" />
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button Content="New" Command="{Binding Editor.NewCommand}" />
-                            <Button Content="Open…" Command="{Binding Editor.OpenCommand}" />
-                            <Button Content="Save" Command="{Binding Editor.SaveCommand}" ToolTip="Ctrl+S" />
-                            <Button Content="Save as…" Command="{Binding Editor.SaveAsCommand}" Margin="0" />
-                        </StackPanel>
-                        <Border />
-                    </DockPanel>
-                    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
-                        <Button Content="Run line / selection" Click="RunSelection_Click" ToolTip="F5: the selected text, or the caret's line" />
-                        <Button Content="Run all" Command="{Binding RunEditorCommand}" ToolTip="Ctrl+F5: the whole text, as if typed" />
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,6">
+                        <RadioButton Style="{StaticResource Zf.Tab}" GroupName="EditorTab" Content="Source" IsChecked="{Binding ShowSource}"
+                                     ToolTip="The Forth source editor" />
+                        <RadioButton Style="{StaticResource Zf.Tab}" GroupName="EditorTab" Content="Pattern" IsChecked="{Binding ShowPattern}"
+                                     ToolTip="The pattern generator: 16 channels on Pmod JA/JB in 5 ns steps" />
                     </StackPanel>
-                    <Border Background="{DynamicResource Zf.EditorBackground}" BorderBrush="{DynamicResource Zf.Border}" BorderThickness="1">
-                        <TextBox x:Name="EditorBox" Style="{StaticResource Zf.Code}" Foreground="{DynamicResource Zf.EditorText}"
-                                 Text="{Binding Editor.Text, UpdateSourceTrigger=PropertyChanged}"
-                                 AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
-                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
-                                 PreviewKeyDown="EditorBox_PreviewKeyDown" />
-                    </Border>
+                    <Grid>
+                        <!-- source -->
+                        <DockPanel Visibility="{Binding ShowSource, Converter={StaticResource VisibleWhen}}">
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <TextBlock DockPanel.Dock="Left" Text="{Binding Editor.Title}" Style="{StaticResource Zf.Heading}" Margin="0,0,10,0" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="New" Command="{Binding Editor.NewCommand}" />
+                                    <Button Content="Open…" Command="{Binding Editor.OpenCommand}" />
+                                    <Button Content="Save" Command="{Binding Editor.SaveCommand}" ToolTip="Ctrl+S" />
+                                    <Button Content="Save as…" Command="{Binding Editor.SaveAsCommand}" Margin="0" />
+                                </StackPanel>
+                                <Border />
+                            </DockPanel>
+                            <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
+                                <Button Content="Run line / selection" Click="RunSelection_Click" ToolTip="F5: the selected text, or the caret's line" />
+                                <Button Content="Run all" Command="{Binding RunEditorCommand}" ToolTip="Ctrl+F5: the whole text, as if typed" />
+                            </StackPanel>
+                            <Border Background="{DynamicResource Zf.EditorBackground}" BorderBrush="{DynamicResource Zf.Border}" BorderThickness="1">
+                                <TextBox x:Name="EditorBox" Style="{StaticResource Zf.Code}" Foreground="{DynamicResource Zf.EditorText}"
+                                         Text="{Binding Editor.Text, UpdateSourceTrigger=PropertyChanged}"
+                                         AcceptsReturn="True" AcceptsTab="True" TextWrapping="NoWrap"
+                                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                         PreviewKeyDown="EditorBox_PreviewKeyDown" />
+                            </Border>
+                        </DockPanel>
+
+                        <!-- pattern -->
+                        <DockPanel Visibility="{Binding ShowPattern, Converter={StaticResource VisibleWhen}}">
+                            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
+                                <TextBlock DockPanel.Dock="Left" Text="{Binding Patterns.Title}" Style="{StaticResource Zf.Heading}" Margin="0,0,10,0" />
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="New" Command="{Binding Patterns.NewCommand}" />
+                                    <Button Content="Open…" Command="{Binding Patterns.OpenCommand}" />
+                                    <Button Content="Save" Command="{Binding Patterns.SaveCommand}" />
+                                    <Button Content="Save as…" Command="{Binding Patterns.SaveAsCommand}" Margin="0" />
+                                </StackPanel>
+                                <Border />
+                            </DockPanel>
+                            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,2">
+                                <Button Content="Insert" Command="{Binding Patterns.InsertCommand}" ToolTip="A step after the selection, like the step before it (Ins)" />
+                                <Button Content="Duplicate" Command="{Binding Patterns.DuplicateCommand}" ToolTip="Copy the selected steps after them (Ctrl+D)" />
+                                <Button Content="Delete" Command="{Binding Patterns.DeleteCommand}" ToolTip="Delete the selected steps (Del)" Margin="0,0,12,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBox Width="78" Text="{Binding Patterns.DurationText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"
+                                         ToolTip="Duration of the selected steps: 100 ns, 2.5 us, 1 ms, 0.5 s (5 ns steps); Enter sets it">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding Patterns.ApplyDurationCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                <Button Content="Set" Command="{Binding Patterns.ApplyDurationCommand}" Margin="4,0,12,0" />
+                                </StackPanel>
+                                <Button Content="Wait" Command="{Binding Patterns.WaitCommand}"
+                                        ToolTip="The selected steps wait for the trigger, then hold their levels for their duration (T in the header)" Margin="0,0,12,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="×" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                <TextBox Width="52" Text="{Binding Patterns.RepeatText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"
+                                         ToolTip="How often the selected steps play in all: 2 to 65535, or forever">
+                                    <TextBox.InputBindings>
+                                        <KeyBinding Key="Return" Command="{Binding Patterns.RepeatCommand}" />
+                                    </TextBox.InputBindings>
+                                </TextBox>
+                                <Button Content="Repeat" Command="{Binding Patterns.RepeatCommand}" Margin="4,0,4,0"
+                                        ToolTip="Repeat the selected steps; repeats nest up to four deep" />
+                                <Button Content="Unrepeat" Command="{Binding Patterns.UnrepeatCommand}" ToolTip="Remove the repeats within the selection" Margin="0,0,12,0" />
+                                </StackPanel>
+                                <Button Content="Undo" Command="{Binding Patterns.UndoCommand}" ToolTip="Ctrl+Z" Margin="0,0,0,4" />
+                            </WrapPanel>
+                            <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,2">
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="At the end" Style="{StaticResource Zf.Dim}" Margin="0,0,6,0" />
+                                <ComboBox MinWidth="130" ItemsSource="{Binding Patterns.EndNames}" SelectedIndex="{Binding Patterns.EndIndex}" />
+                                <TextBlock Text="from step" Style="{StaticResource Zf.Dim}" Margin="8,0,6,0" />
+                                <TextBox Width="44" Text="{Binding Patterns.RestartText, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center"
+                                         IsEnabled="{Binding Patterns.Restarts}" Margin="0,0,16,0" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                <TextBlock Text="Trigger" Style="{StaticResource Zf.Dim}" Margin="0,0,6,0" />
+                                <ComboBox MinWidth="130" ItemsSource="{Binding Patterns.TriggerSourceNames}" SelectedIndex="{Binding Patterns.TriggerIndex}"
+                                          ToolTip="What wait steps wait for: a shield pin, a button, or pg-trig only" />
+                                <ComboBox MinWidth="100" ItemsSource="{Binding Patterns.EdgeNames}" SelectedIndex="{Binding Patterns.EdgeIndex}" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </WrapPanel>
+                            <StackPanel DockPanel.Dock="Bottom" Margin="0,6,0,0">
+                                <TextBlock Text="{Binding Patterns.Messages}" TextWrapping="Wrap" MaxHeight="64" Margin="0,0,0,4">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Foreground" Value="{DynamicResource Zf.Warning}" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Patterns.HasErrors}" Value="True">
+                                                    <Setter Property="Foreground" Value="{DynamicResource Zf.Error}" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <DockPanel>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Patterns.Summary}" Style="{StaticResource Zf.Dim}" />
+                                    <WrapPanel>
+                                        <Button Content="Load &amp; start" Command="{Binding PatternLoadCommand}"
+                                                ToolTip="Send the pattern to the board as Forth and start it" />
+                                        <Button Content="Start" Command="{Binding PatternStartCommand}" ToolTip="pg-start: play the loaded pattern from step 0" />
+                                        <Button Content="Stop" Command="{Binding PatternStopCommand}" ToolTip="pg-stop: the idle levels" />
+                                        <Button Content="To editor" Command="{Binding PatternToEditorCommand}"
+                                                ToolTip="The pattern as Forth in the source editor, e.g. to store it with autostart" />
+                                    </WrapPanel>
+                                </DockPanel>
+                            </StackPanel>
+                            <Border Background="{DynamicResource Zf.EditorBackground}" BorderBrush="{DynamicResource Zf.Border}" BorderThickness="1">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <ItemsControl ItemsSource="{Binding Patterns.Channels}" Margin="{Binding Patterns.ChannelsMargin}" Focusable="False">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal" Height="20">
+                                                        <CheckBox IsChecked="{Binding Enabled}" Margin="4,0,2,0" ToolTip="Driven by the generator; otherwise the pin is not driven" />
+                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="62" FontSize="11" Padding="1,0"
+                                                                 BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                                                 ToolTip="The channel's name (Pmod JA1-4, 7-10 = channels 0-7, JB = 8-15)" />
+                                                        <CheckBox IsChecked="{Binding Idle}" Margin="2,0,4,0" ToolTip="Idle level high: while stopped and after the end" />
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                                            <controls:PatternView Editor="{Binding Patterns}" HorizontalAlignment="Left" VerticalAlignment="Top" />
+                                        </ScrollViewer>
+                                    </Grid>
+                                </ScrollViewer>
+                            </Border>
+                        </DockPanel>
+                    </Grid>
                 </DockPanel>
             </Border>
 

@@ -64,6 +64,32 @@
         </Setter>
     </Style>
 
+    <!-- a flat tab: a radio button with an accent line under the chosen one -->
+    <Style x:Key="Zf.Tab" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource Zf.DimText}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Margin" Value="0,0,14,0" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Line" BorderThickness="0,0,0,2" BorderBrush="Transparent" Padding="1,0,1,2" Background="Transparent">
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Line" Property="BorderBrush" Value="{DynamicResource Zf.Accent}" />
+                            <Setter Property="Foreground" Value="{DynamicResource Zf.PanelHeader}" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource Zf.Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{DynamicResource Zf.Text}" />
         <Setter Property="Cursor" Value="Hand" />

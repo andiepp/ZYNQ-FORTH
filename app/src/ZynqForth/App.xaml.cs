@@ -16,7 +16,7 @@ public partial class App : Application
         MainWindow = new MainWindow(viewModel);
         MainWindow.Show();
 
-        // ZynqForth.exe [--skin <name>] [--connect [COMn]] [file.fs]
+        // ZynqForth.exe [--skin <name>] [--connect [COMn]] [file.fs] [file.pattern]
         string[] args = e.Args;
         for (int i = 0; i < args.Length; i++)
         {
@@ -32,6 +32,12 @@ public partial class App : Application
                 }
 
                 _ = viewModel.ToggleConnectionAsync();
+            }
+            else if (System.IO.File.Exists(args[i]) &&
+                     args[i].EndsWith(".pattern", StringComparison.OrdinalIgnoreCase))
+            {
+                viewModel.Patterns.OpenFile(args[i]);
+                viewModel.ShowPattern = true;
             }
             else if (System.IO.File.Exists(args[i]))
             {
