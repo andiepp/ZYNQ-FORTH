@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1 — 2026-11-02
+
+- App 1.1: a **Manual** button (and F1) opens the user manual as a PDF; the manual is built
+  into the app.
+- Firmware and bitstream unchanged (firmware 1.0, protocol 1): a board running 1.0 needs no
+  update.
+
 ## 1.0 — 2026-11-02
 
 First version, derived from the HF16 Forth laboratory.
