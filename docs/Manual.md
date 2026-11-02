@@ -123,7 +123,7 @@ connects at once, chooses a skin, or opens a file in the editor.
 
 | Area | Place | What it is for |
 |---|---|---|
-| Top bar | top | Port, *Connect*, firmware; **Skin** and **Board** at the right |
+| Top bar | top | Port, *Connect*, firmware; **Skin**, **Board** and **Manual** (this manual as a PDF, also F1) at the right |
 | **Editor** | left | Forth source files, sent to Forth in whole or in part |
 | **Terminal** | middle | Forth's output, the input line, the restarts |
 | **Data stack** | top right | The stack at the last prompt, top first |

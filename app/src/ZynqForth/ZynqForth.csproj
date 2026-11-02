@@ -14,4 +14,9 @@
     <ProjectReference Include="..\ZynqForth.Core\ZynqForth.Core.csproj" />
   </ItemGroup>
 
+  <!-- the user manual, opened by the Manual button (tools/manual_pdf.py builds it) -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\docs\Manual.pdf" LogicalName="ZynqForth.Manual.pdf" />
+  </ItemGroup>
+
 </Project>

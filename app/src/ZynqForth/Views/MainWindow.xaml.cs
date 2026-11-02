@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Runtime.InteropServices;
@@ -34,6 +36,7 @@ public partial class MainWindow : Window, IUserDialogs
 
         InputBindings.Add(new KeyBinding(viewModel.Editor.SaveCommand, Key.S, ModifierKeys.Control));
         InputBindings.Add(new KeyBinding(viewModel.RunEditorCommand, Key.F5, ModifierKeys.Control));
+        InputBindings.Add(new KeyBinding(new RelayCommand(OpenManual), Key.F1, ModifierKeys.None));
         Loaded += (_, _) => InputBox.Focus();
         SourceInitialized += (_, _) => UpdateTitleBar();
         Skins.Changed += UpdateTitleBar;
@@ -84,6 +87,54 @@ public partial class MainWindow : Window, IUserDialogs
         if (atEnd)
         {
             TerminalBox.ScrollToEnd();
+        }
+    }
+
+    private void Manual_Click(object sender, RoutedEventArgs e) => OpenManual();
+
+    /// <summary>
+    /// Opens the manual built into the app in the PDF viewer. It is written to
+    /// %LocalAppData%\ZYNQ-FORTH when missing or different; if a viewer still holds an older
+    /// copy open, the new one gets a numbered name.
+    /// </summary>
+    private void OpenManual()
+    {
+        try
+        {
+            using Stream? manual = typeof(MainWindow).Assembly.GetManifestResourceStream("ZynqForth.Manual.pdf");
+            if (manual is null)
+            {
+                throw new FileNotFoundException("This build of the app contains no manual.");
+            }
+
+            byte[] content = new byte[manual.Length];
+            manual.ReadExactly(content);
+            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZYNQ-FORTH");
+            Directory.CreateDirectory(folder);
+            string path = Path.Combine(folder, "ZYNQ-FORTH Manual.pdf");
+            for (int n = 2; File.Exists(path) && !File.ReadAllBytes(path).AsSpan().SequenceEqual(content); n++)
+            {
+                try
+                {
+                    File.WriteAllBytes(path, content);
+                }
+                catch (IOException) when (n < 10)
+                {
+                    path = Path.Combine(folder, $"ZYNQ-FORTH Manual ({n}).pdf");
+                }
+            }
+
+            if (!File.Exists(path))
+            {
+                File.WriteAllBytes(path, content);
+            }
+
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception)
+        {
+            MessageBox.Show(this, $"The manual could not be opened: {exception.Message}", "ZYNQ-FORTH",
+                            MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
