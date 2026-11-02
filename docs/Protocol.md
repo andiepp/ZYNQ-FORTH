@@ -1,6 +1,6 @@
 # ZYNQ-FORTH serial protocol
 
-Protocol version 1, firmware 1.0.
+Protocol version 1, firmware 2.0.
 
 The board's USB serial port (the Arty Z7's FTDI channel B, 115200 baud, 8N1, no handshake)
 carries two things at once:
@@ -14,6 +14,9 @@ carries two things at once:
 The ARM core answers service requests itself, while Forth keeps running: a request never
 waits for Forth, and it works even while a Forth word loops for ever.
 
+Since firmware 2.0 the same port also serves the **HASE laboratory**, whose host speaks
+MCNF; the board switches by itself (see "HASE mode" at the end).
+
 ## Terminal
 
 | Direction | Bytes |
@@ -25,7 +28,7 @@ waits for Forth, and it works even while a Forth word loops for ever.
 At every start the ARM prints a line before Forth's banner:
 
 ```
-[zynq-forth] 1.0, kernel 2398 words loaded and verified
+[zynq-forth] 2.0, kernel 2398 words loaded and verified
 [zynq-forth] autostart: 195 bytes of saved source
 ```
 
@@ -144,6 +147,33 @@ xadc A11D 56ED 998F 0000 …    32 XADC status registers
   (register 0) in °C = code × 503.975 / 4096 − 273.15; supplies (1, 2, 6, 0x0D–0x0F) in volts
   = code × 3 / 4096; A0–A5 = registers 0x11, 0x19, 0x16, 0x1F, 0x15, 0x1D with 3.32 V full
   scale; A6/A7, A8/A9, A10/A11 = 0x1C, 0x10, 0x18 with 1 V full scale.
+
+## HASE mode
+
+Firmware 2.0 is also the HF16 Forth node of the HASE laboratory
+([andiepp/HASE](https://github.com/andiepp/HASE), instrument family Forth-Lab): the HASE
+Runtime Host talks to it in **MCNF**, binary frames that each start with a byte `0xA_`
+(`0xA1` connectivity test, `0xA4` node administration, `0xA5` device functions). A
+terminal or the app never sends such a byte to Forth, which takes printable ASCII only, so
+the board can tell the two apart:
+
+| Situation | What the board does |
+|---|---|
+| After power-up | Terminal: banner, autostart and Forth's output go out as described above. |
+| A byte `0xA_` arrives between two terminal requests | A **probe** starts: Forth's output is held back from now on. A connectivity test `0xA1` is answered with `0x21`. |
+| A valid MCNF frame (checksum right, channel `0xA4` or `0xA5`) within 2 s | **HASE mode.** The board answers MCNF requests only. Forth's output waits in a 4 KB ring until the host fetches it; when nobody does, the oldest bytes are dropped (and counted). |
+| An invalid frame, an unfinished one, or 2 s without a valid frame | Back to the terminal, nothing answered. Held output goes out. |
+| In HASE mode, a terminal byte between two frames: printable ASCII, CR, LF, Tab, Backspace, SOH or Ctrl-R | Back to the terminal at once; the byte is handled as usual, and what Forth printed meanwhile goes out first. |
+
+So whichever program holds the serial port decides the mode: the HASE host while it runs, a
+terminal program or the app once it sends anything. The HASE host waits until the port has
+been quiet for 200 ms before its first frame, which leaves Forth's start-up output to the
+terminal. A stray `0xA1` typed into a terminal only shows a `!`.
+
+In HASE mode the node has type `AE.07.30.80` and reports firmware 2.0. Its frames, the
+device functions 0x15 (version), 0x30–0x33 (status, restart, input, output), 0x40–0x42
+(dictionary and data stack) and 0x50–0x55 (saved source) are those of HASE-Lab's Forth-Lab
+family; the saved source is the same flash sector the `store` request writes.
 
 ## Example in Python
 

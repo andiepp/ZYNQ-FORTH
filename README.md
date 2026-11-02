@@ -12,7 +12,9 @@ Windows app to program it.
   pins, 4 PWM channels and 9 analog inputs through the XADC.
 - The **ARM core** loads the kernel and carries Forth's terminal over the USB serial port.
   Any terminal program (PuTTY, Tera Term) talks to Forth directly; the app adds service
-  requests on the same line ([docs/Protocol.md](docs/Protocol.md)).
+  requests on the same line ([docs/Protocol.md](docs/Protocol.md)). The same firmware is
+  also the Forth node of the [HASE](https://github.com/andiepp/HASE) laboratory: it
+  switches to HASE's MCNF protocol by itself when a HASE host talks to it.
 - One Forth source can be **saved in flash** and runs at every start (hold BTN3 to skip it).
 - The **app**: editor, terminal, data stack, dictionary, saved source, a live view of the
   board, and five skins: IDE dark, IDE light, Green phosphor, Amber and Lab panel.

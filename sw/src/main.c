@@ -8,8 +8,18 @@
  * is never mixed into Forth's output. A 0x01 that Forth itself prints goes out doubled.
  * Ctrl-R (0x12) typed at a terminal restarts Forth. The protocol: docs/Protocol.md.
  *
- * The input ring (64 KB, a whole source fits) feeds the RX FIFO as Forth reads it. Forth's
- * output waits in the TX FIFO when the UART is busy, so nothing is ever dropped.
+ * The same UART also serves the HASE laboratory, whose host speaks MCNF (mcnf_node.c):
+ * every MCNF message starts with a byte 0xA_, which a terminal never sends to Forth. Such
+ * a byte between two terminal requests starts a probe: Forth's output is held from then
+ * on, and a valid MCNF frame within 2 s switches the link to HASE mode, where the node
+ * answers MCNF requests only and Forth's output waits in the output ring for the host to
+ * fetch it (the oldest bytes are dropped when nobody does). A probe without a valid frame
+ * falls back to the terminal. In HASE mode, a terminal byte (printable ASCII, CR, LF, BS,
+ * SOH, Ctrl-R) between two frames switches back, and the held output is sent first.
+ *
+ * The input ring (64 KB, a whole source fits) feeds the RX FIFO as Forth reads it. On the
+ * terminal, Forth's output waits in the TX FIFO when the UART is busy, so nothing is ever
+ * dropped.
  *
  * One Forth source can be saved in the QSPI flash (flash.c). At power-up and at every
  * restart it is fed to Forth after the kernel (autostart), unless autostart is off,
@@ -29,8 +39,11 @@
 #include "xuartps_hw.h"
 #include "flash.h"
 #include "forth_image.h"
+#include "mcnf_node.h"
 
-#define FIRMWARE_VERSION    "1.0"
+#define FIRMWARE_VERSION    "2.0"
+#define FIRMWARE_MAJOR      2               /* as the HASE node reports it (function 0x15) */
+#define FIRMWARE_MINOR      0
 #define PROTOCOL_VERSION    1
 
 #define UART                STDIN_BASEADDRESS   /* PS UART0, 115200 8N1 from the BSP */
@@ -57,6 +70,7 @@
 #define CTRL_R              0x12            /* restart from a terminal program */
 #define LINE_MAX            128
 #define REQUEST_TIMEOUT     (COUNTS_PER_SECOND * 2)     /* between two bytes of a request */
+#define PROBE_TIME          (COUNTS_PER_SECOND * 2)     /* for a valid MCNF frame to arrive */
 
 #define IN_SIZE             65536u          /* powers of two */
 #define OUT_SIZE            4096u
@@ -66,9 +80,40 @@
 #define SOURCE_MAX          (FLASH_SECTOR_SIZE - SOURCE_HEADER)
 
 #define STACK_MAX           20              /* ssnap in kernel.fs */
+#define DICT_MAX            2048
+#define NAME_MAX            31
 
+/* HASE node device functions (channel 0xA5), as HASE-Lab's Forth-Lab family uses them */
+#define FN_VERSION          0x15
+#define FN_STATUS           0x30
+#define FN_RESTART          0x31
+#define FN_INPUT            0x32
+#define FN_OUTPUT           0x33
+#define FN_DICT_SNAPSHOT    0x40
+#define FN_DICT_PAGE        0x41
+#define FN_DATA_STACK       0x42
+#define FN_SOURCE_INFO      0x50
+#define FN_SOURCE_WRITE     0x51
+#define FN_SOURCE_COMMIT    0x52
+#define FN_SOURCE_READ      0x53
+#define FN_SOURCE_ERASE     0x54
+#define FN_AUTOSTART_SET    0x55
+
+#define ERR_SOURCE_CRC      0x11            /* the staging buffer does not match the CRC */
+#define ERR_FLASH           0x12            /* erase, program or verify failed */
+#define ERR_NO_SOURCE       0x14            /* nothing stored */
+#define ERR_STACK_BUSY      0x15            /* the stack copy did not settle */
+
+#define AUTO_STORED         0x1             /* status byte of function 0x30 */
+#define AUTO_ON             0x2
+#define AUTO_FED            0x4
+#define AUTO_SKIPPED        0x8
+
+/* the output ring holds Forth's bytes as printed; a SOH is doubled on its way to the UART */
 static u8 in_ring[IN_SIZE], out_ring[OUT_SIZE];
 static u32 in_head, in_tail, out_head, out_tail;    /* free-running indices */
+static u32 out_dropped;                             /* oldest bytes dropped in HASE mode */
+static int soh_half;                                /* the first of a doubled SOH is out */
 static u16 starts;
 static int running;
 static u16 image_checksum;
@@ -89,35 +134,75 @@ static u32 line_len, payload_len, payload_pos, payload_crc;
 static int payload_auto;
 static XTime rx_last;
 
+/* who the UART talks to: a terminal (or the app), a possible HASE host, the HASE host */
+static enum { LINK_TERMINAL, LINK_PROBE, LINK_HASE } link_mode;
+static XTime probe_start;
+
+/* the dictionary table the HASE node serves page by page */
+static struct {
+    u16 xt;
+    u8 flags, length;
+    char name[NAME_MAX];
+} dict[DICT_MAX];
+static u16 dict_count, dict_latest, dict_here;
+
 /* ------------------------------------------------------------------------------------ */
 /* UART and Forth's FIFOs                                                               */
 /* ------------------------------------------------------------------------------------ */
 
+/* into the output ring; full, it drops the oldest byte (only HASE mode lets it fill) */
 static void out_put(u8 c)
 {
+    if (out_head - out_tail == OUT_SIZE) {
+        out_tail++;
+        out_dropped++;
+        soh_half = 0;
+    }
     out_ring[out_head++ % OUT_SIZE] = c;
 }
 
 static void out_put_str(const char *s)
 {
-    while (*s && out_head - out_tail < OUT_SIZE)
+    while (*s)
         out_put((u8)*s++);
 }
 
-/* Forth's output into the output ring (only while it has room for a doubled SOH), the
-   ring into the UART; the autostart feed and the input ring into the RX FIFO */
+/* the output ring into the UART, a SOH doubled; blocking waits for room in the UART */
+static void uart_send(int blocking)
+{
+    while (out_tail != out_head) {
+        u8 c = out_ring[out_tail % OUT_SIZE];
+
+        if (XUartPs_IsTransmitFull(UART)) {
+            if (!blocking)
+                return;
+            continue;
+        }
+        XUartPs_WriteReg(UART, XUARTPS_FIFO_OFFSET, c);
+        if (c == SOH && !soh_half) {
+            soh_half = 1;
+            continue;
+        }
+        soh_half = 0;
+        out_tail++;
+    }
+}
+
+/* Forth's output into the output ring and, on the terminal, the ring into the UART (there
+   Forth waits while the ring is full); the autostart feed and the input ring into the RX
+   FIFO */
 static void pump(void)
 {
-    for (int i = 0; i < 64 && OUT_SIZE - (out_head - out_tail) >= 2; i++) {
+    for (int i = 0; i < 64; i++) {
+        if (link_mode == LINK_TERMINAL && out_head - out_tail == OUT_SIZE)
+            break;
         u32 t = Xil_In32(FORTH_BASE + REG_TX_POP);
         if (!(t & TX_VALID))
             break;
-        if ((u8)t == SOH)
-            out_put(SOH);
         out_put((u8)t);
     }
-    while (out_tail != out_head && !XUartPs_IsTransmitFull(UART))
-        XUartPs_WriteReg(UART, XUARTPS_FIFO_OFFSET, out_ring[out_tail++ % OUT_SIZE]);
+    if (link_mode == LINK_TERMINAL)
+        uart_send(0);
     while (feed_pos < feed_len && in_head - in_tail < IN_SIZE)
         in_ring[in_head++ % IN_SIZE] = sector[SOURCE_HEADER + feed_pos++];
     while (in_tail != in_head && !(Xil_In32(FORTH_BASE + REG_STATUS) & STATUS_RX_FULL))
@@ -127,8 +212,7 @@ static void pump(void)
 /* sends what Forth printed so far, then blocks on the UART */
 static void send_flush(void)
 {
-    while (out_tail != out_head)
-        XUartPs_SendByte(UART, out_ring[out_tail++ % OUT_SIZE]);
+    uart_send(1);
 }
 
 static void send_bytes(const void *data, u32 length)
@@ -521,8 +605,8 @@ static void receive_timeout(void)
     }
 }
 
-/* one byte from the UART: terminal input, or part of a service request */
-static void receive(u8 c)
+/* one byte from the terminal: input for Forth, or part of a service request */
+static void terminal_receive(u8 c)
 {
     receive_timeout();
     XTime_GetTime(&rx_last);
@@ -557,6 +641,273 @@ static void receive(u8 c)
     }
 }
 
+/* ------------------------------------------------------------------------------------ */
+/* HASE node (MCNF device functions, HASE-Lab Hase.Mcnf.ForthLab)                       */
+/* ------------------------------------------------------------------------------------ */
+
+static u32 read_u32(const u8 *b)
+{
+    return ((u32)b[0] << 24) | ((u32)b[1] << 16) | ((u32)b[2] << 8) | b[3];
+}
+
+/* walks the header list while the CPU is paused; links must point downwards */
+static void dict_snapshot(void)
+{
+    u16 h;
+
+    cpu_pause();
+    dict_latest = ram_read(FORTH_LATEST_ADDR);
+    dict_here = ram_read(FORTH_DP_ADDR);
+    dict_count = 0;
+    for (h = dict_latest; h != 0 && dict_count < DICT_MAX; ) {
+        u8 count = ram_byte(h + 2);
+        u8 length = count & 0x1F;
+        u16 link_to = ram_read(h);
+
+        dict[dict_count].flags = count & 0xE0;
+        dict[dict_count].length = length;
+        for (int k = 0; k < length; k++)
+            dict[dict_count].name[k] = ram_byte(h + 3 + k);
+        dict[dict_count].xt = (h + 3 + length + 1) & ~1u;
+        dict_count++;
+        if (link_to >= h)
+            break;
+        h = link_to;
+    }
+    cpu_resume();
+}
+
+static u8 device(u8 function, const u8 *params, u8 param_length, u8 response_length,
+                 u8 *payload, u8 *payload_length)
+{
+    u32 n, i, offset, length;
+
+    switch (function) {
+    case FN_VERSION:
+        payload[0] = FIRMWARE_MAJOR;
+        payload[1] = FIRMWARE_MINOR;
+        mcnf_write_u16(payload + 2, FORTH_IMAGE_WORDS);
+        mcnf_write_u16(payload + 4, image_checksum);
+        *payload_length = 6;
+        return MCNF_ERR_NONE;
+
+    case FN_STATUS:
+        n = (in_head - in_tail) + (feed_len - feed_pos);
+        payload[0] = running;
+        mcnf_write_u16(payload + 1, (Xil_In32(FORTH_BASE + REG_STATUS) >> 16) & 0x1FFF);
+        mcnf_write_u16(payload + 3, n > 0xFFFF ? 0xFFFF : n);
+        mcnf_write_u16(payload + 5, out_head - out_tail);
+        mcnf_write_u32(payload + 7, out_dropped);
+        mcnf_write_u16(payload + 11, starts);
+        payload[13] = (stored_state == 1 ? AUTO_STORED : 0) |
+                      (stored_state == 1 && stored.autostart ? AUTO_ON : 0) |
+                      (!strcmp(last_start, "fed") ? AUTO_FED : 0) |
+                      (!strcmp(last_start, "skipped") ? AUTO_SKIPPED : 0);
+        mcnf_write_u32(payload + 14, stored_state == 1 ? stored.length : 0);
+        *payload_length = 18;
+        return MCNF_ERR_NONE;
+
+    case FN_RESTART:
+        if (param_length > 1)
+            return MCNF_ERR_VARIABLE_DATA;
+        *payload_length = 0;
+        return load_and_start(param_length && (params[0] & 1))
+               ? MCNF_ERR_NONE : FORTH_ERR_IMAGE_VERIFY;
+
+    case FN_INPUT:
+        if (param_length == 0)
+            return MCNF_ERR_VARIABLE_DATA;
+        n = IN_SIZE - (in_head - in_tail);
+        if (n > param_length)
+            n = param_length;
+        for (i = 0; i < n; i++)
+            in_ring[in_head++ % IN_SIZE] = params[i];
+        payload[0] = n;
+        *payload_length = 1;
+        return MCNF_ERR_NONE;
+
+    case FN_OUTPUT:
+        if (response_length < 3)
+            return FORTH_ERR_RESPONSE_LENGTH;
+        n = out_head - out_tail;
+        if (n > response_length - 3u)
+            n = response_length - 3u;
+        payload[0] = n;
+        for (i = 0; i < n; i++)
+            payload[1 + i] = out_ring[out_tail++ % OUT_SIZE];
+        for (; i < response_length - 3u; i++)
+            payload[1 + i] = 0;
+        *payload_length = response_length - 2;
+        return MCNF_ERR_NONE;
+
+    case FN_DICT_SNAPSHOT:
+        dict_snapshot();
+        mcnf_write_u16(payload, dict_count);
+        mcnf_write_u16(payload + 2, dict_latest);
+        mcnf_write_u16(payload + 4, dict_here);
+        *payload_length = 6;
+        return MCNF_ERR_NONE;
+
+    case FN_DICT_PAGE:
+        if (param_length != 2 || response_length < 3)
+            return MCNF_ERR_VARIABLE_DATA;
+        n = 0;                                      /* entries */
+        length = 1;                                 /* payload bytes used */
+        for (i = (params[0] << 8) | params[1]; i < dict_count; i++) {
+            if (length + 4 + dict[i].length > response_length - 2u)
+                break;
+            mcnf_write_u16(payload + length, dict[i].xt);
+            payload[length + 2] = dict[i].flags;
+            payload[length + 3] = dict[i].length;
+            memcpy(payload + length + 4, dict[i].name, dict[i].length);
+            length += 4 + dict[i].length;
+            n++;
+        }
+        payload[0] = n;
+        memset(payload + length, 0, response_length - 2u - length);
+        *payload_length = response_length - 2;
+        return MCNF_ERR_NONE;
+
+    case FN_DATA_STACK: {
+        u16 items[STACK_MAX];
+        int depth = stack_snapshot(items);
+
+        if (depth < 0)
+            return ERR_STACK_BUSY;
+        memset(payload, 0, 1 + 2 * STACK_MAX);
+        payload[0] = depth;
+        for (i = 0; i < (u32)depth; i++)
+            mcnf_write_u16(payload + 1 + 2 * i, items[i]);
+        *payload_length = 1 + 2 * STACK_MAX;
+        return MCNF_ERR_NONE;
+    }
+
+    case FN_SOURCE_INFO:
+        payload[0] = stored_state;
+        payload[1] = stored_state == 1 && stored.autostart;
+        mcnf_write_u32(payload + 2, stored_state ? stored.length : 0);
+        mcnf_write_u32(payload + 6, stored_state ? stored.crc : 0);
+        *payload_length = 10;
+        return MCNF_ERR_NONE;
+
+    case FN_SOURCE_WRITE:
+        if (param_length < 5)
+            return MCNF_ERR_VARIABLE_DATA;
+        offset = read_u32(params);
+        n = param_length - 4;
+        if (offset > SOURCE_MAX || n > SOURCE_MAX - offset)
+            return MCNF_ERR_VARIABLE_DATA;
+        memcpy(staging + offset, params + 4, n);
+        *payload_length = 0;
+        return MCNF_ERR_NONE;
+
+    case FN_SOURCE_COMMIT:
+        if (param_length != 9)
+            return MCNF_ERR_VARIABLE_DATA;
+        length = read_u32(params);
+        if (length > SOURCE_MAX)
+            return MCNF_ERR_VARIABLE_DATA;
+        if (crc32(staging, length) != read_u32(params + 4))
+            return ERR_SOURCE_CRC;
+        stored.magic = SOURCE_MAGIC;
+        stored.length = length;
+        stored.crc = read_u32(params + 4);
+        stored.autostart = params[8] ? 1 : 0;
+        memcpy(sector, &stored, sizeof stored);
+        memcpy(sector + SOURCE_HEADER, staging, length);
+        *payload_length = 0;
+        return source_write(length) ? MCNF_ERR_NONE : ERR_FLASH;
+
+    case FN_SOURCE_READ:
+        if (param_length != 4)
+            return MCNF_ERR_VARIABLE_DATA;
+        offset = read_u32(params);
+        n = response_length - 2u;
+        if (offset > SOURCE_MAX || n > SOURCE_MAX - offset)
+            return MCNF_ERR_VARIABLE_DATA;
+        memcpy(payload, sector + SOURCE_HEADER + offset, n);
+        *payload_length = n;
+        return MCNF_ERR_NONE;
+
+    case FN_SOURCE_ERASE:
+        *payload_length = 0;
+        if (!flash_erase_sector(FLASH_SOURCE_BASE))
+            return ERR_FLASH;
+        source_load();
+        return stored_state == 0 ? MCNF_ERR_NONE : ERR_FLASH;
+
+    case FN_AUTOSTART_SET:
+        if (param_length != 1)
+            return MCNF_ERR_VARIABLE_DATA;
+        if (stored_state != 1)
+            return ERR_NO_SOURCE;
+        stored.autostart = params[0] ? 1 : 0;
+        memcpy(sector, &stored, sizeof stored);
+        *payload_length = 0;
+        return source_write(stored.length) ? MCNF_ERR_NONE : ERR_FLASH;
+
+    default:
+        return MCNF_ERR_UNKNOWN_FUNCTION;
+    }
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* The link: terminal or HASE                                                           */
+/* ------------------------------------------------------------------------------------ */
+
+/* what a terminal or the app sends between two MCNF frames */
+static int terminal_byte(u8 c)
+{
+    return c == SOH || c == CTRL_R || c == '\r' || c == '\n' || c == '\t' || c == 8 ||
+           (c >= 0x20 && c <= 0x7F);
+}
+
+/* back to the terminal: what Forth printed meanwhile goes out from the ring */
+static void to_terminal(void)
+{
+    link_mode = LINK_TERMINAL;
+    rx_mode = TERMINAL;
+}
+
+/* one byte from the UART */
+static void receive(u8 c)
+{
+    enum mcnf_result result;
+
+    if (link_mode == LINK_TERMINAL) {
+        if (rx_mode != TERMINAL || (c & MCNF_SYNC_MASK) != MCNF_SYNC) {
+            terminal_receive(c);
+            return;
+        }
+        link_mode = LINK_PROBE;                     /* hold Forth's output from now on */
+        XTime_GetTime(&probe_start);
+    } else if (mcnf_idle() && (c & MCNF_SYNC_MASK) != MCNF_SYNC && terminal_byte(c)) {
+        to_terminal();
+        terminal_receive(c);
+        return;
+    }
+
+    result = mcnf_feed(c, link_mode == LINK_HASE);
+    if (result == MCNF_FRAME)
+        link_mode = LINK_HASE;
+    else if (result == MCNF_BAD && link_mode == LINK_PROBE)
+        to_terminal();
+}
+
+/* a probe ends after PROBE_TIME without a valid frame, or when its frame stops arriving */
+static void link_timeout(void)
+{
+    XTime now;
+
+    if (mcnf_timeout() && link_mode == LINK_PROBE) {
+        to_terminal();
+        return;
+    }
+    XTime_GetTime(&now);
+    if (link_mode == LINK_PROBE && now - probe_start > PROBE_TIME)
+        to_terminal();
+}
+
 int main(void)
 {
     XTime start, now;
@@ -573,11 +924,13 @@ int main(void)
     if (flash_init())
         source_load();
     load_and_start(0);
+    mcnf_init(device);
 
     for (;;) {
         while (XUartPs_IsReceiveData(UART))
             receive(XUartPs_ReadReg(UART, XUARTPS_FIFO_OFFSET));
         receive_timeout();
+        link_timeout();
         pump();
     }
 }

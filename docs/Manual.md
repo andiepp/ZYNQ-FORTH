@@ -66,10 +66,16 @@ the Device Manager lists it under *Ports*). Start the app, choose that port and 
 | Enter key | sends CR (PuTTY's default) |
 | Local echo | off (Forth echoes what you type) |
 
+Only one program can use the serial port at a time. Since firmware 2.0 that program can
+also be a host of the [HASE](https://github.com/andiepp/HASE) laboratory, which runs the
+board as its Forth-Lab instrument: the board notices the HASE host's protocol and switches
+to it, and back as soon as a terminal program or the app sends anything. Output Forth
+printed meanwhile and nobody fetched then appears first (docs/Protocol.md, "HASE mode").
+
 ### First session
 
 ```
-[zynq-forth] 1.0, kernel 2398 words loaded and verified
+[zynq-forth] 2.0, kernel 2398 words loaded and verified
 
 HF16 Forth on Arty Z7-20
 2 3 + . 5  ok

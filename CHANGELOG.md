@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.0 — unreleased
+
+- Firmware 2.0: one firmware for both uses. Besides the terminal and the app's service
+  requests (protocol 1, unchanged), the board is the HF16 Forth node of the HASE laboratory
+  and switches to HASE's MCNF protocol by itself when a HASE host talks to it, and back when
+  a terminal or the app does (docs/Protocol.md, "HASE mode").
+- Bitstream, kernel and app unchanged.
+
 ## 1.1 — 2026-11-02
 
 - App 1.1: a **Manual** button (and F1) opens the user manual as a PDF; the manual is built
