@@ -134,6 +134,7 @@ board 00120115                LEDs, RGB LEDs, buttons, switches
 ports 2000FFFB 08000000 00000000
 pwm 00002C02
 xadc A11D 56ED 998F 0000 …    32 XADC status registers
+pg 00030001 FFFF0001          pattern generator (firmware 2.2 and later)
 ```
 
 - `board`: bits 3..0 = LD3..LD0, bits 9..4 = RGB (bits 4/5/6 = LD4 red/green/blue,
@@ -147,6 +148,12 @@ xadc A11D 56ED 998F 0000 …    32 XADC status registers
   (register 0) in °C = code × 503.975 / 4096 − 273.15; supplies (1, 2, 6, 0x0D–0x0F) in volts
   = code × 3 / 4096; A0–A5 = registers 0x11, 0x19, 0x16, 0x1F, 0x15, 0x1D with 3.32 V full
   scale; A6/A7, A8/A9, A10/A11 = 0x1C, 0x10, 0x18 with 1 V full scale.
+- `pg`: the pattern generator ([PatternGenerator.md](PatternGenerator.md)). First word: bits
+  27..16 = the current step, bits 6..0 = status (0 running, 1 waiting for the trigger, 2 ended,
+  3 a pattern write was ignored, 4 a step ran late, 5 loops nested too deep, 6 busy). Second
+  word: bits 31..16 = channel enable mask, bits 15..0 = current output levels (channel n = bit
+  n; 0–7 on Pmod JA, 8–15 on JB). Older firmware sends no `pg` line; clients ignore lines they
+  do not know.
 
 ## HASE mode
 

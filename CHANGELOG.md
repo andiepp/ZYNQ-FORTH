@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.2 — unreleased
+
+- Pattern generator (docs/PatternGenerator.md): 16 channels on Pmod JA and JB, played in
+  5 ns steps from its own 200 MHz clock; 4096 steps with loops nested 4 deep, jumps, waits
+  for a trigger (shield pin, button or software) and an end. New bitstream (`rtl/patgen.v`,
+  I/O registers 0x80C0–0x80D4, AXI registers 0x30/0x34).
+- Kernel: words `ns` `us` `msec` `pg-at` `pg-step` `pg-loop` `pg-jump` `pg-wait` `pg-end`
+  `pg-start` `pg-stop` `pg-trig` `pg-enable` `pg-idle` `pg-trigger` `pg-status` `pg-pc`
+  `pg-out@` `pg-sync`.
+- Firmware 2.2: the `board` answer gains a `pg` line (protocol 1; older apps ignore it).
+- Still to come before the release: the app's live view and pattern editor, the manual.
+
 ## 2.1 — 2026-11-02
 
 - Firmware 2.1: HASE mode gains device function 0x43, the board registers the `board`

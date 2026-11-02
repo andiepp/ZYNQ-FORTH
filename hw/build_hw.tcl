@@ -7,6 +7,7 @@
 set part       xc7z020clg400-1
 set board_part digilentinc.com:arty-z7-20:part0:1.1
 set fclk_mhz   50     ;# the single-cycle ALU/multiplier -> RAM address path misses 100 MHz by ~0.15 ns
+set pg_mhz     200    ;# pattern generator clock (rtl/patgen.v)
 set axi_base   0x43C00000
 set here       [file dirname [file dirname [file normalize [info script]]]]
 set out_dir    [file join $here build hw]
@@ -25,6 +26,8 @@ apply_bd_automation -rule xilinx.com:bd_rule:processing_system7 \
     -config {make_external "FIXED_IO, DDR" apply_board_preset "1" Master "Disable" Slave "Disable"} \
     [get_bd_cells ps7]
 set_property CONFIG.PCW_FPGA0_PERIPHERAL_FREQMHZ $fclk_mhz [get_bd_cells ps7]
+# FCLK1: the pattern generator's own clock, 5 ns per tick
+set_property -dict [list CONFIG.PCW_EN_CLK1_PORT 1 CONFIG.PCW_FPGA1_PERIPHERAL_FREQMHZ $pg_mhz] [get_bd_cells ps7]
 
 create_bd_cell -type module -reference forth_system forth
 set_property CONFIG.CLK_HZ [expr {$fclk_mhz * 1000000}] [get_bd_cells forth]
@@ -40,10 +43,11 @@ foreach seg [get_bd_addr_segs -of_objects [get_bd_addr_spaces ps7/Data]] {
 
 foreach {port dir msb} {led O 3  rgb O 5  btn I 3  sw I 1
                         ck_io IO 13  ck_a IO 5  ck_ioh IO 15
-                        an_p I 5  an_n I 5  ad_p I 2  ad_n I 2} {
+                        an_p I 5  an_n I 5  ad_p I 2  ad_n I 2  pmod O 15} {
     create_bd_port -dir $dir -from $msb -to 0 $port
     connect_bd_net [get_bd_ports $port] [get_bd_pins forth/$port]
 }
+connect_bd_net [get_bd_pins ps7/FCLK_CLK1] [get_bd_pins forth/pg_clk]
 
 validate_bd_design
 save_bd_design

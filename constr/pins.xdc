@@ -90,3 +90,27 @@ set_property -dict { PACKAGE_PIN A20  IOSTANDARD LVCMOS33 } [get_ports { ad_n[2]
 ## Human-facing and software-timed I/O: no I/O timing
 set_false_path -from [get_ports { btn[*] sw[*] ck_io[*] ck_a[*] ck_ioh[*] }]
 set_false_path -to   [get_ports { led[*] rgb[*] ck_io[*] ck_a[*] ck_ioh[*] }]
+
+## Pattern generator: channels 0..7 on Pmod JA, 8..15 on JB (pins 1-4, 7-10), fast edges.
+## The output and enable registers sit in the I/O blocks (rtl/patgen.v), so all channels
+## switch on the same 200 MHz clock edge.
+set_property -dict { PACKAGE_PIN Y18  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[0] }]; #Sch=JA1_P
+set_property -dict { PACKAGE_PIN Y19  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[1] }]; #Sch=JA2_N
+set_property -dict { PACKAGE_PIN Y16  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[2] }]; #Sch=JA3_P
+set_property -dict { PACKAGE_PIN Y17  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[3] }]; #Sch=JA4_N
+set_property -dict { PACKAGE_PIN U18  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[4] }]; #Sch=JA7_P
+set_property -dict { PACKAGE_PIN U19  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[5] }]; #Sch=JA8_N
+set_property -dict { PACKAGE_PIN W18  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[6] }]; #Sch=JA9_P
+set_property -dict { PACKAGE_PIN W19  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[7] }]; #Sch=JA10_N
+set_property -dict { PACKAGE_PIN W14  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[8] }]; #Sch=JB1_P
+set_property -dict { PACKAGE_PIN Y14  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[9] }]; #Sch=JB2_N
+set_property -dict { PACKAGE_PIN T11  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[10] }]; #Sch=JB3_P
+set_property -dict { PACKAGE_PIN T10  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[11] }]; #Sch=JB4_N
+set_property -dict { PACKAGE_PIN V16  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[12] }]; #Sch=JB7_P
+set_property -dict { PACKAGE_PIN W16  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[13] }]; #Sch=JB8_N
+set_property -dict { PACKAGE_PIN V12  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[14] }]; #Sch=JB9_P
+set_property -dict { PACKAGE_PIN W13  IOSTANDARD LVCMOS33 SLEW FAST DRIVE 8 } [get_ports { pmod[15] }]; #Sch=JB10_N
+## CPU clock (FCLK0) <-> generator clock (FCLK1): only synchronized handshakes cross;
+## keep their data paths short instead of timing them as related clocks
+set_max_delay -datapath_only -from [get_clocks clk_fpga_0] -to [get_clocks clk_fpga_1] 5.0
+set_max_delay -datapath_only -from [get_clocks clk_fpga_1] -to [get_clocks clk_fpga_0] 5.0

@@ -88,6 +88,7 @@ store with a plain DROP, which satisfies this.
 | 0x8082 + 8c | PWM channel c: period, high 16 bits (clocks per cycle, at least 2) | same (takes both halves) |
 | 0x8084 + 8c | PWM channel c: duty in 1/65536 of the period, 0xFFFF = always high | same |
 | 0x8086 + 8c | PWM channel c: bit 15 on, bits 5..0 pin number | same |
+| 0x80C0..0x80D4 | pattern generator, see [PatternGenerator.md](PatternGenerator.md#forth-interface) | |
 
 Only address bits 7..1 are decoded, so the map repeats every 256 bytes above 0x8000.
 
@@ -149,6 +150,8 @@ In simulation the Xilinx XADC model reads its inputs from `sim/xadc_stim.txt`;
 | 0x1C, 0x20, 0x24 | PORT0..PORT2: bits 15..0 = pin levels (as at 0x8010 + 8p), bits 31..16 = pins driven (direction or PWM) |
 | 0x28 | PWM: bits 3..0 = channel enables, then the pin of channel c in bits 9+6c..4+6c |
 | 0x2C | XADC: write selects a status register 0..31; read returns bits 20..16 = the selection, bits 15..0 = its value (the scanner's second read port) |
+| 0x30 | PG_STATUS: bits 27..16 = the pattern generator's current step, bits 6..0 = its status (as at 0x80C0) |
+| 0x34 | PG_OUT: bits 31..16 = channel enable mask, bits 15..0 = current output levels |
 
 Registers 0x18 to 0x2C let the ARM show the board's state in the app while Forth runs; they
 only read, so they never disturb the CPU.

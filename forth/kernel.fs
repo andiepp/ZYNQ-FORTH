@@ -176,6 +176,39 @@ create tib 82 allot
 : pwm-off ( ch -- ) pwm 6 + 0 swap ! ;
 
 \ ---------------------------------------------------------------------------
+\ Pattern generator: 16 channels, 0..7 on Pmod JA and 8..15 on JB, played in
+\ ticks of 5 ns from its own clock (rtl/patgen.v, docs/PatternGenerator.md).
+\ Durations are double cells in ticks. A step stores its levels, duration and
+\ what happens after it; the generator can only be loaded while stopped.
+\ ---------------------------------------------------------------------------
+
+: ns ( n -- d ) 5 u/mod nip 0 ;
+: us ( n -- d ) 200 um* ;
+: d2* ( d -- d' ) swap dup 0< >r 2* swap 2* r> if 1+ then ;
+: msec ( n -- d ) 50000 um* d2* d2* ;
+: pg-sync ( -- ) begin $80C0 @ $40 and 0= until ;
+: pg-status ( -- u ) pg-sync $80C0 @ ;
+: pg-pc ( -- step ) $80C2 @ ;
+: pg-out@ ( -- levels ) $80C4 @ ;
+: pg-at ( step -- ) $80C2 ! ;
+: (pg) ( out d op count -- )
+  pg-status 1 and if ."  pattern running" cr abort then
+  >r >r $80C8 ! $80C6 ! $80C4 ! r> $80CA ! r> $80CC ! ;
+: pg-step ( out d -- ) 0 0 (pg) ;
+: pg-loop ( out d target count -- ) >r $FFF and $1000 or r> (pg) ;
+: pg-jump ( out d target -- ) $FFF and $2000 or 0 (pg) ;
+: pg-wait ( out d -- ) $3000 0 (pg) ;
+: pg-end ( out -- ) 0 0 $4000 0 (pg) ;
+: pg-start ( -- ) 1 $80C0 ! pg-sync ;
+: pg-stop ( -- ) 2 $80C0 ! pg-sync ;
+: pg-trig ( -- ) 4 $80C0 ! pg-sync ;
+: pg-enable ( mask -- ) $80CE ! pg-sync ;
+: pg-idle ( levels -- ) $80D0 ! pg-sync ;
+\ source: pin 0..41, 48..51 = BTN0..BTN3, 63 = software only; edge: 1 rising,
+\ 2 falling, 3 both
+: pg-trigger ( source edge -- ) 8 lshift or $80D2 ! pg-sync ;
+
+\ ---------------------------------------------------------------------------
 \ Analog inputs (XADC). Its status registers 0..31 appear at $8040; results
 \ are 12 bits in bits 15..4. Channels 0..5 = A0..A5 (0..3.32 V through a
 \ divider), 6..8 = the pairs A6/A7, A8/A9, A10/A11 (0..1 V, + minus -).

@@ -41,9 +41,9 @@
 #include "forth_image.h"
 #include "mcnf_node.h"
 
-#define FIRMWARE_VERSION    "2.1"
+#define FIRMWARE_VERSION    "2.2"
 #define FIRMWARE_MAJOR      2               /* as the HASE node reports it (function 0x15) */
-#define FIRMWARE_MINOR      1
+#define FIRMWARE_MINOR      2
 #define PROTOCOL_VERSION    1
 
 #define UART                STDIN_BASEADDRESS   /* PS UART0, 115200 8N1 from the BSP */
@@ -59,6 +59,8 @@
 #define REG_PORT0           0x1C            /* three ports, 4 bytes apart */
 #define REG_PWM             0x28
 #define REG_XADC            0x2C
+#define REG_PG_STATUS       0x30            /* pattern generator: step, status */
+#define REG_PG_OUT          0x34            /* its enable mask and current levels */
 
 #define CTRL_HOLD           0x1
 #define CTRL_PAUSE          0x2
@@ -482,6 +484,9 @@ static void request_board(void)
         n += snprintf((char *)reply + n, sizeof reply - n, " %04lX",
                       (unsigned long)(Xil_In32(FORTH_BASE + REG_XADC) & 0xFFFF));
     }
+    n += snprintf((char *)reply + n, sizeof reply - n, "\npg %08lX %08lX",
+                  (unsigned long)Xil_In32(FORTH_BASE + REG_PG_STATUS),
+                  (unsigned long)Xil_In32(FORTH_BASE + REG_PG_OUT));
     reply[n++] = '\n';
     answer("board", reply, n);
 }

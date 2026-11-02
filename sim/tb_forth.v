@@ -10,6 +10,9 @@ module tb;
 
     reg clk = 1'b0;
     always #5 clk = ~clk;              // 100 MHz
+    reg pg_clk = 1'b0;
+    always #2.5 pg_clk = ~pg_clk;      // 200 MHz, the pattern generator
+    wire [15:0] pmod;
 
     reg         aresetn = 1'b0;
     reg  [5:0]  awaddr = 0, araddr = 0;
@@ -36,7 +39,8 @@ module tb;
         .s_axi_rvalid(rvalid), .s_axi_rready(rready),
         .led(led), .rgb(rgb), .btn(4'b0000), .sw(2'b00),
         .ck_io(ck_io), .ck_a(ck_a), .ck_ioh(ck_ioh),
-        .an_p(6'd0), .an_n(6'd0), .ad_p(3'd0), .ad_n(3'd0)  // analog values: xadc_stim.txt
+        .an_p(6'd0), .an_n(6'd0), .ad_p(3'd0), .ad_n(3'd0), // analog values: xadc_stim.txt
+        .pg_clk(pg_clk), .pmod(pmod)
     );
 
     // TB drives on the falling edge; the DUT samples on the rising edge
@@ -126,6 +130,33 @@ module tb;
             pwm_prev = ck_io[3] === 1'b1;
         end
 
+    // Pattern generator monitor: on channel 0 of the Pmod pins, count the generator
+    // clocks while it plays, the rising edges, and the shortest and longest high pulse and
+    // period between rising edges (sim/patgen.txt)
+    integer pg_ticks = 0, pg_rises = 0, pg_width = 0, pg_since = 0;
+    integer pg_wmin = 1 << 30, pg_wmax = 0, pg_pmin = 1 << 30, pg_pmax = 0;
+    reg     pg_prev = 1'b0;
+    always @(posedge pg_clk)
+        if (dut.pg.run_q) begin
+            pg_ticks = pg_ticks + 1;
+            pg_since = pg_since + 1;
+            if (pmod[0] === 1'b1) pg_width = pg_width + 1;
+            if (pmod[0] === 1'b1 && !pg_prev) begin
+                if (pg_rises > 0) begin
+                    if (pg_since < pg_pmin) pg_pmin = pg_since;
+                    if (pg_since > pg_pmax) pg_pmax = pg_since;
+                end
+                pg_rises = pg_rises + 1;
+                pg_since = 0;
+            end
+            if (pmod[0] !== 1'b1 && pg_prev && pg_rises > 1) begin
+                if (pg_width < pg_wmin) pg_wmin = pg_width;
+                if (pg_width > pg_wmax) pg_wmax = pg_width;
+            end
+            if (pmod[0] !== 1'b1) pg_width = 0;
+            pg_prev = pmod[0] === 1'b1;
+        end
+
     reg [1023:0] image_file, input_file;
     integer      fd, c, idle;
     reg [31:0]   status, tx;
@@ -191,6 +222,9 @@ module tb;
         if (pwm_clocks)
             $display("[tb] pwm 0 on IO3: %0d clocks, %0d high, %0d rising edges; pulses %0d..%0d, periods %0d..%0d clocks",
                      pwm_clocks, pwm_high, pwm_rises, pwm_wmin, pwm_wmax, pwm_pmin, pwm_pmax);
+        if (pg_ticks)
+            $display("[tb] pattern generator, channel 0: %0d ticks, %0d rising edges; pulses %0d..%0d, periods %0d..%0d ticks",
+                     pg_ticks, pg_rises, pg_wmin, pg_wmax, pg_pmin, pg_pmax);
         $display("[tb] done at %0t ns, leds=%b, pc=%h", $time, led, status[28:16]);
         $finish;
     end

@@ -1,6 +1,6 @@
-// HF16 Forth system: CPU, 16 KB RAM, I/O and an AXI-Lite slave for the ARM
-// (image loader, UART character bridge, RAM reads while paused, board state for the
-// app's lab panel). Register and I/O maps: docs/design.md.
+// HF16 Forth system: CPU, 16 KB RAM, I/O, the pattern generator and an AXI-Lite slave
+// for the ARM (image loader, UART character bridge, RAM reads while paused, board state
+// for the app's lab panel). Register and I/O maps: docs/design.md.
 
 `default_nettype none
 
@@ -42,7 +42,11 @@ module forth_system #(
     input  wire [5:0]  an_p,       // A0..A5 analog (through the 2.32k/1k divider)
     input  wire [5:0]  an_n,
     input  wire [2:0]  ad_p,       // A6/A7, A8/A9, A10/A11 differential, 0..1 V
-    input  wire [2:0]  ad_n
+    input  wire [2:0]  ad_n,
+
+    // pattern generator: its 200 MHz clock and the Pmod pins (JA1..4,7..10, JB1..4,7..10)
+    input  wire        pg_clk,
+    output wire [15:0] pmod
 );
 
     wire clk = s_axi_aclk;
@@ -235,11 +239,26 @@ module forth_system #(
     );
 
     // ------------------------------------------------------------------
+    // Pattern generator at 0x80C0..0x80DF (rtl/patgen.v)
+    // ------------------------------------------------------------------
+    wire        io_pg = mem_addr[7:5] == 3'b110;
+    wire [15:0] pg_rdata;
+    wire [31:0] pg_status, pg_out;
+
+    patgen pg (
+        .clk(clk), .rst(cpu_rst), .we(io_store && io_pg), .reg_sel(mem_addr[4:1]),
+        .wdata(mem_wdata), .rdata(pg_rdata), .arm_status(pg_status), .arm_out(pg_out),
+        .pg_clk(pg_clk), .trig_pins({6'd0, ck_ioh, 6'd0, ck_a, ck_io}), .trig_btn(btn),
+        .pins(pmod)
+    );
+
+    // ------------------------------------------------------------------
     // I/O registers (CPU side). Reads are registered like the RAM.
     //   0x8000..0x800A  UART, LEDs, buttons, RGB, ms timer
     //   0x8010 + 8p     port p: +0 pin levels, +2 output latch, +4 direction
     //   0x8040..0x807E  XADC status registers 0..31
     //   0x8080 + 8c     PWM channel c: +0/+2 period, +4 duty, +6 control (rtl/pwm.v)
+    //   0x80C0..0x80D4  pattern generator (rtl/patgen.v)
     // ------------------------------------------------------------------
     reg [15:0] io_rdata = 16'd0;
     reg        io_sel   = 1'b0;
@@ -274,6 +293,8 @@ module forth_system #(
             io_rdata <= xadc_rdata;
         else if (io_pwm)
             io_rdata <= pwm_rdata;
+        else if (io_pg)
+            io_rdata <= pg_rdata;
         else if (io_gpio)
             case (mem_addr[2:1])
                 2'd0:    io_rdata <= pin_sync[io_bit0 +: 16] & pin_exists[io_bit0 +: 16];
@@ -375,6 +396,8 @@ module forth_system #(
                     4'd9: s_axi_rdata <= {pin_drive[47:32], pin_sync[47:32] & pin_exists[47:32]};
                     4'd10: s_axi_rdata <= {4'd0, pwm_pin, pwm_en};
                     4'd11: s_axi_rdata <= {11'd0, xadc_sel, xadc_rdata2};
+                    4'd12: s_axi_rdata <= pg_status;
+                    4'd13: s_axi_rdata <= pg_out;
                     default: s_axi_rdata <= 32'd0;
                 endcase
             end
