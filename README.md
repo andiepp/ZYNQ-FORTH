@@ -7,17 +7,20 @@ Windows app to program it.
 
 - **HF16**, a 16-bit dual-stack CPU in the Zynq's programmable logic whose instructions are
   Forth primitives: one instruction per clock at 50 MHz.
-- A **Forth kernel** of 191 words, written in Forth and cross-compiled on the PC: the
+- A **Forth kernel** of 212 words, written in Forth and cross-compiled on the PC: the
   interpreter and compiler, the board's LEDs, RGB LEDs, buttons and switches, 36 shield
-  pins, 4 PWM channels and 9 analog inputs through the XADC.
+  pins, 4 PWM channels, 9 analog inputs through the XADC, and the pattern generator.
+- A **pattern generator**: 16 digital channels on the Pmod headers JA and JB, played in
+  steps of 5 ns from its own 200 MHz clock; 4096 steps with repeats, jumps, waits for a
+  pin, button or software trigger ([docs/PatternGenerator.md](docs/PatternGenerator.md)).
 - The **ARM core** loads the kernel and carries Forth's terminal over the USB serial port.
   Any terminal program (PuTTY, Tera Term) talks to Forth directly; the app adds service
   requests on the same line ([docs/Protocol.md](docs/Protocol.md)). The same firmware is
   also the Forth node of the [HASE](https://github.com/andiepp/HASE) laboratory: it
   switches to HASE's MCNF protocol by itself when a HASE host talks to it.
 - One Forth source can be **saved in flash** and runs at every start (hold BTN3 to skip it).
-- The **app**: editor, terminal, data stack, dictionary, saved source, a live view of the
-  board, and five skins: IDE dark, IDE light, Green phosphor, Amber and Lab panel.
+- The **app**: editor, terminal, data stack, dictionary, saved source, a pattern editor
+  (timing diagram), a live view of the board, and five skins: IDE dark, IDE light, Green phosphor, Amber and Lab panel.
 
 | IDE dark | Green phosphor |
 |---|---|
@@ -31,6 +34,7 @@ Windows app to program it.
   interpreter, every word, examples, troubleshooting.
 - [docs/Protocol.md](docs/Protocol.md) — the serial protocol, for your own programs.
 - [docs/design.md](docs/design.md) — the HF16 instruction set, memory and register maps.
+- [docs/PatternGenerator.md](docs/PatternGenerator.md) — the pattern generator's design.
 
 ## Try it
 
@@ -47,6 +51,23 @@ words
 ```
 
 More in [examples/](examples).
+
+### Pattern generator pinout
+
+```
+          Pmod JA                               Pmod JB
+ pin    1    2    3    4    5    6        1    2    3    4    5    6
+      CH0  CH1  CH2  CH3  GND  3V3      CH8  CH9  CH10 CH11 GND  3V3
+      CH4  CH5  CH6  CH7  GND  3V3      CH12 CH13 CH14 CH15 GND  3V3
+ pin    7    8    9   10   11   12        7    8    9   10   11   12
+```
+
+3.3 V outputs, not short-circuit protected (the fast Pmods have no series resistors). A
+1 MHz clock on channel 0:
+
+```forth
+pg-stop 1 pg-enable 0 pg-at  1 500 ns pg-step  0 500 ns 0 pg-jump  pg-start
+```
 
 ## Repository
 

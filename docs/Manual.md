@@ -8,7 +8,8 @@ or any terminal program talks to it.
 
 Besides the board's LEDs, buttons and switches, Forth reaches the Arduino-compatible
 **shield connector**: 36 digital pins with four PWM channels, and 9 analog inputs, read by
-the FPGA's built-in XADC converter.
+the FPGA's built-in XADC converter. On the Pmod headers JA and JB, a **pattern generator**
+plays 16 digital channels in steps of 5 ns, loaded from Forth or drawn in the app.
 
 This manual covers how to use the system, how the implementation works, and every word
 in the kernel. For the instruction encoding and the register maps, see
@@ -48,7 +49,7 @@ the flash once (from the repository root, with Vitis 2023.2; see the README for 
 3. Set JP4 to **QSPI** and switch the board off and on.
 
 LD0 lights up when Forth runs. The flash keeps ZYNQ-FORTH until something else is written
-there; a Forth source you save from the app (section 2.7) lives in a sector of its own.
+there; a Forth source you save from the app (section 2.8) lives in a sector of its own.
 
 For development, `xsct sw/run.tcl` loads the bitstream and the ARM program over JTAG
 instead (JP4 on JTAG; it lasts until the board is switched off).
@@ -130,7 +131,7 @@ connects at once, chooses a skin, or opens a file in the editor.
 | Area | Place | What it is for |
 |---|---|---|
 | Top bar | top | Port, *Connect*, firmware; **Skin**, **Board** and **Manual** (this manual as a PDF, also F1) at the right |
-| **Editor** | left | Forth source files, sent to Forth in whole or in part |
+| **Editor** | left | *Source*: Forth source files, sent to Forth in whole or in part; *Pattern*: the pattern generator's editor (section 2.6) |
 | **Terminal** | middle | Forth's output, the input line, the restarts |
 | **Data stack** | top right | The stack at the last prompt, top first |
 | **Dictionary** | right | The words Forth knows, newest first |
@@ -173,6 +174,9 @@ After each line the app reads the data stack; after a line that defines words (`
 
 ### 2.5 The editor
 
+The editor area has two tabs: **Source**, the Forth editor described here, and **Pattern**,
+the pattern editor (section 2.6).
+
 - The title shows the file's name, or *untitled.fs*, and a star while there are unsaved
   changes; the window title repeats it.
 - **New**, **Open…**, **Save** (Ctrl+S) and **Save as…** work on files, usually with the
@@ -190,7 +194,72 @@ span several lines. An error discards the rest of its line only (section 3.4): t
 following lines still run, so check the terminal after a long run. If an error interrupted a
 definition, fix it and run the definition again.
 
-### 2.6 The data stack and the dictionary
+### 2.6 The pattern editor
+
+The **Pattern** tab above the editor turns the editor area into the pattern generator's
+editor (section 5.14). The column grows while it is shown; **Source** brings the Forth
+editor back. A pattern is a row of **steps**: each step sets the 16 channels to high or low
+for a duration, in ticks of 5 ns.
+
+![The pattern editor with a triggered burst](images/app-pattern.png)
+
+**The timing diagram.** One row per channel, one column per step. A column's header shows
+the step's number and duration, and long steps get wider columns, so 5 ns and one second
+both stay readable. Repeats are brackets above their steps, labelled ×8 or ×∞; a wait step
+has a **T** before its number; after the last step the diagram shows what follows: *end:
+idle* or *↺ step n*. While a pattern plays on the board, a marker above the header shows the
+step the generator is at.
+
+- **Click a cell** to switch the channel's level in that step; **drag** across cells to
+  paint that level.
+- **Click a header** to select a step; **Shift**+click selects a range. The arrow keys move
+  the selection (Shift extends it), **Del** deletes, **Ins** inserts, **Ctrl+D** duplicates,
+  **Ctrl+Z** undoes.
+
+**Beside the diagram**, each channel has a box for *enabled* (the generator drives the
+pin; a channel that is not enabled is not driven), its **name**, and a box for its **idle
+level** (the level while stopped and after the end).
+
+**The toolbar** works on the selected steps:
+
+| Control | What it does |
+|---|---|
+| **Insert**, **Duplicate**, **Delete** | A step after the selection (like the step before it), a copy of the selection after it, or remove the selection. Repeats move with their steps. |
+| duration box, **Set** (or Enter) | The duration of the selected steps: `100 ns`, `2.5 us`, `1 ms`, `0.5 s`; a bare number means ns. Rounded to 5 ns; 5 ns up to 21.47 s. |
+| **Wait** | The selected steps wait for the trigger: they show their levels, wait, then hold them for their duration. |
+| × box, **Repeat**, **Unrepeat** | Play the selected steps this many times in all (2..65535, or *forever*); remove the repeats inside the selection. Repeats may nest four deep. |
+| **Undo** | Back one change (Ctrl+Z). |
+| **At the end** | *stop (idle levels)*, or *restart forever* **from step** n. |
+| **Trigger** | What wait steps wait for: *software* (`pg-trig` only), BTN0..BTN3 or a shield pin, and the edge. |
+
+**Checks.** Under the diagram the app lists what the generator cannot do (red) and what
+may not work as meant (yellow), as you edit:
+
+- errors: repeats that overlap without one containing the other, two repeats ending on the
+  same step, more than four nested, a wait step that also ends a repeat, a restart into the
+  middle of a repeat, a last step that ends a repeat or waits when the pattern restarts
+  (add a step after it), more than 4096 steps;
+- warnings: a repeat or restart loop whose steps are too short to keep up (section 5.14,
+  *Timing*), wait steps with the software trigger only, and channels with high levels that
+  are not enabled.
+
+**The buttons below:**
+
+- **Load & start** sends the pattern to the board as Forth (the terminal shows it) and
+  starts it. It is disabled while the pattern has errors.
+- **Start** (`pg-start`) plays the loaded pattern again from step 0; **Stop** (`pg-stop`)
+  sets the idle levels.
+- **To editor** puts the same Forth into the source editor (after any text there), for
+  example to save it in flash with *Store editor* and autostart (section 2.8). The
+  generator itself forgets the pattern at power-off.
+
+**Files.** **New**, **Open…**, **Save** and **Save as…** work on `.pattern` files (JSON).
+The app also opens a `.pattern` file named on its command line. Examples are in
+`examples/patterns`: `counter` (a 4-bit counter on channels 0..3 in 1 µs steps),
+`burst` (BTN0 starts 8 clock pulses inside a frame signal) and `clock-marker` (a 1 MHz
+clock with a marker pulse every 1000 cycles).
+
+### 2.7 The data stack and the dictionary
 
 Both are read from the board's memory: the ARM pauses the HF16 for a few microseconds, and
 Forth then carries on where it was. **↻** reads again.
@@ -212,7 +281,7 @@ Forth then carries on where it was. **↻** reads again.
 - The box above the list shows only the words containing its text.
 - **Double-click** a word to add it to the terminal's input line.
 
-### 2.7 The saved source
+### 2.8 The saved source
 
 The flash keeps one Forth source. With **autostart** on, it is fed to Forth after the kernel
 at power-up and at every restart, as if it were typed (section 4.7).
@@ -233,7 +302,7 @@ A saved source should end at the prompt. One that loops for ever, or waits for `
 Forth at every start. **Hold BTN3 while switching the board on** to skip it, then switch the
 autostart off or erase the source. *Restart clean* skips it too.
 
-### 2.8 The board view
+### 2.9 The board view
 
 Tick **Board** at the top right (the Lab panel skin ticks it for you). The view shows the
 board as Forth sees it, read four times a second:
@@ -246,11 +315,15 @@ board as Forth sees it, read four times a second:
   number). Inputs read 1 when open because of the pull-ups (section 5.11);
 - the voltages on A0..A5 under their pins, and on the differential pairs A6/A7, A8/A9,
   A10/A11, the chip temperature and two supplies (section 5.12);
-- which PWM channels are on, and their pins.
+- which PWM channels are on, and their pins;
+- at the right, the Pmod headers **JA** and **JB** with the pattern generator's 16 channels,
+  each driven high, driven low, or not enabled, and the generator's state: *stopped*,
+  *running · step n*, *waiting for the trigger*, *ended*, and *late* when a step ran late
+  (section 5.14). With firmware older than 2.2 the view says so instead.
 
 The view only reads: Forth's I/O is never changed by it.
 
-### 2.9 A worked session
+### 2.10 A worked session
 
 This session writes a small program, tries it, and makes it start with the board. The
 program is a running light on LD0 to LD3:
@@ -361,7 +434,8 @@ as underflow.
                                               ├─ 32-byte receive and send FIFOs
                                               ├─ LEDs, RGB LEDs, buttons, switches, ms timer
                                               ├─ shield pins: 36 digital inputs/outputs
-                                              └─ XADC: 9 analog inputs, temperature, supplies
+                                              ├─ XADC: 9 analog inputs, temperature, supplies
+                                              └─ pattern generator: 16 Pmod channels, 5 ns steps
 ```
 
 | Part | File |
@@ -369,6 +443,7 @@ as underflow.
 | HF16 CPU | `rtl/hf16_cpu.v` |
 | RAM, FIFOs, I/O, shield pins, AXI interface | `rtl/forth_system.v`, `rtl/fifo.v` |
 | XADC and its register scanner | `rtl/xadc_scan.v` |
+| Pattern generator, on its own 200 MHz clock | `rtl/patgen.v` |
 | Forth kernel, written in Forth | `forth/kernel.fs` |
 | Cross-compiler and simulator | `tools/hf16.py` |
 | ARM loader, terminal and service requests | `sw/src/main.c`, `sw/src/flash.c` |
@@ -393,10 +468,10 @@ as underflow.
 | Address | Content |
 |---|---|
 | `$0000` | jump to `cold` (start-up) |
-| `$0002`–`$12BB` | the kernel: 191 words with their headers, variables and buffers |
-| `$12BC`–`$3FFF` | free for your definitions (about 11.3 KB). `here` shows the next free byte |
+| `$0002`–`$14A5` | the kernel: 212 words with their headers, variables and buffers |
+| `$14A6`–`$3FFF` | free for your definitions (about 10.8 KB). `here` shows the next free byte |
 | `$4000`–`$7FFF` | a mirror of `$0000`–`$3FFF` |
-| `$8000`–`$809F` | I/O registers (see below) |
+| `$8000`–`$80D5` | I/O registers (see below) |
 
 Cells are stored little-endian, low byte first. Cell addresses must be even: `@` and `!`
 ignore bit 0. There is no check for a full dictionary. Writing past `$3FFF` wraps around
@@ -417,8 +492,10 @@ The I/O registers can also be read and written directly with `@` and `!`:
 | `$8014`, `$801C`, `$8024` | port 0, 1, 2: direction, 1 = output | direction |
 | `$8040`–`$807E` | XADC registers 0..31 (`xadc@`) | – |
 | `$8080`–`$809E` | PWM channels 0..3 (section 5.13) | PWM registers |
+| `$80C0`–`$80D4` | pattern generator (section 5.14) | pattern generator |
 
-Section 5.11 explains the ports, 5.12 the XADC registers and 5.13 the PWM registers.
+Section 5.11 explains the ports, 5.12 the XADC registers, 5.13 the PWM registers and 5.14
+the pattern generator's.
 
 ### 4.4 Dictionary entries
 
@@ -475,7 +552,7 @@ reads a line (`accept-line`), interprets it (`interpret`), prints ` ok`, and rep
 
 ### 4.7 The saved program (autostart)
 
-One Forth source can be saved in the flash (from the app, section 2.7, or with
+One Forth source can be saved in the flash (from the app, section 2.8, or with
 `python tools/zforth.py store:<file>:on`). With autostart on, the ARM feeds
 it to Forth right after `cold`, at power-up and at every restart, exactly as if it were typed:
 the definitions are compiled and the commands run. The kernel itself is never changed, so
@@ -494,7 +571,7 @@ At most 65,520 bytes can be saved; lines end in CR. While the flash is written (
 
 ## 5. Word reference
 
-The kernel has 191 words. Section 5.20 lists the internal ones, which mainly serve the
+The kernel has 212 words. Section 5.21 lists the internal ones, which mainly serve the
 interpreter and compiler. Where a word differs from standard Forth, its entry says so.
 
 ### 5.1 Data stack
@@ -868,7 +945,150 @@ duty cycle as a share of the 3.3 V level, with some scatter at high frequencies.
 | +4 | duty, in 1/65536 of the period; `$FFFF` = always high |
 | +6 | bit 15 = on, bits 5..0 = pin number |
 
-### 5.14 Defining words
+### 5.14 Pattern generator
+
+The pattern generator plays up to 4096 **steps** on **16 digital channels** in ticks of
+**5 ns**, from its own 200 MHz clock. A step sets all 16 levels for a duration of 1 tick
+(5 ns) up to 4,294,967,295 ticks (21.47 s) and says what happens after it: the next step,
+a repeat, a jump, a wait for a trigger, or the end. Forth loads the steps and starts it;
+from then on the generator runs on its own, also while Forth computes or waits for input.
+The app draws patterns as a timing diagram and loads them for you (section 2.6).
+
+**Pinout.** The channels are on the two Pmod headers **JA** (channels 0..7) and **JB**
+(channels 8..15). A Pmod header has two rows of six pins; pin 1 is marked on the board
+next to the header. Pins 5 and 11 are GND, pins 6 and 12 are 3.3 V:
+
+```
+          Pmod JA                               Pmod JB
+ pin    1    2    3    4    5    6        1    2    3    4    5    6
+      CH0  CH1  CH2  CH3  GND  3V3      CH8  CH9  CH10 CH11 GND  3V3
+      CH4  CH5  CH6  CH7  GND  3V3      CH12 CH13 CH14 CH15 GND  3V3
+ pin    7    8    9   10   11   12        7    8    9   10   11   12
+```
+
+| Channel | Pmod pin | FPGA pin | | Channel | Pmod pin | FPGA pin |
+|---|---|---|---|---|---|---|
+| 0 | JA1 | Y18 | | 8 | JB1 | W14 |
+| 1 | JA2 | Y19 | | 9 | JB2 | Y14 |
+| 2 | JA3 | Y16 | | 10 | JB3 | T11 |
+| 3 | JA4 | Y17 | | 11 | JB4 | T10 |
+| 4 | JA7 | U18 | | 12 | JB7 | V16 |
+| 5 | JA8 | U19 | | 13 | JB8 | W16 |
+| 6 | JA9 | W18 | | 14 | JB9 | V12 |
+| 7 | JA10 | W19 | | 15 | JB10 | W13 |
+
+The outputs are 3.3 V CMOS (8 mA, fast edges). All channels change on the same clock edge.
+A channel that is not **enabled** is not driven (high impedance), and so are all channels
+after power-up and after every start of Forth. JA and JB are the board's fast Pmod headers:
+their pins have no series resistors, so **an output is not protected against a short**.
+Do not connect an output to GND, 3.3 V or another output. For edges of a few ns, keep the
+wires short and use the GND pin of the same header.
+
+**Words.** Durations are double numbers in ticks (low cell, then high cell), which the
+first three words make from times:
+
+| Word | Stack | Description |
+|---|---|---|
+| `ns` | `( n -- d )` | n nanoseconds in ticks, rounded down to 5 ns: `100 ns` = 20 ticks. |
+| `us` | `( n -- d )` | n microseconds: n × 200 ticks. |
+| `msec` | `( n -- d )` | n milliseconds: n × 200,000 ticks; n up to 21474. Not `ms`: that word waits (section 5.10). |
+| `pg-at` | `( step -- )` | The step the next step word stores, 0..4095. |
+| `pg-step` | `( levels d -- )` | Store a step: the levels (channel n = bit n) for d ticks, then the next step. |
+| `pg-loop` | `( levels d target count -- )` | Store the last step of a repeat: after it, go back to step *target* until the steps *target*..this one have run *count* times in all; 0 = forever. |
+| `pg-jump` | `( levels d target -- )` | Store a step that continues at step *target* after it. |
+| `pg-wait` | `( levels d -- )` | Store a wait step: it shows its levels, waits for the trigger, then holds them for d ticks. |
+| `pg-end` | `( levels -- )` | Store the end: the generator stops with these levels on the pins. |
+| `pg-start` | `( -- )` | Play from step 0 (also while playing: start again). |
+| `pg-stop` | `( -- )` | Stop; the enabled channels go to their idle levels. |
+| `pg-trig` | `( -- )` | The software trigger: a waiting step goes on. |
+| `pg-enable` | `( mask -- )` | Which channels the generator drives (bit n = channel n). |
+| `pg-idle` | `( levels -- )` | The levels while stopped. |
+| `pg-trigger` | `( source edge -- )` | What wait steps wait for. Source: a shield pin 0..41, 48..51 for BTN0..BTN3, 63 for the software trigger only. Edge: 1 rising, 2 falling, 3 both. `pg-trig` works with any source. |
+| `pg-status` | `( -- u )` | The status bits, below. |
+| `pg-pc` | `( -- step )` | The step playing now. |
+| `pg-out@` | `( -- levels )` | The levels on the channels now. |
+| `pg-sync` | `( -- )` | Wait until the generator has taken the last command or setting (about 0.1 µs). The words above that command or set it do this themselves. |
+
+The step words refuse to store while a pattern plays: ` pattern running`, then the line
+is abandoned. `pg-stop` first. The generator keeps its steps until power-off, also over a
+restart of Forth (which stops it and makes all channels undriven).
+
+**Repeats.** `pg-loop` marks the **last** step of a repeated block; the block runs from
+*target* to it. A repeat needs no "begin" step, and repeats may **nest up to four deep**, as
+long as they end on different steps. A fifth nested repeat does not repeat; status bit 5
+shows it.
+
+```
+\ a 1 MHz clock on channel 0, a marker on channel 1 every 1000 cycles
+pg-stop  3 pg-enable  0 pg-idle  0 pg-at
+1 500 ns pg-step              \ 0: clock high
+0 500 ns 0 999 pg-loop        \ 1: clock low; steps 0-1 play 999 times
+3 500 ns pg-step              \ 2: clock and marker high
+0 500 ns 0 pg-jump            \ 3: low; back to step 0, forever
+pg-start
+```
+
+```
+\ BTN0 starts a burst of 8 pulses on channel 0 inside a frame on channel 1
+pg-stop  3 pg-enable  0 pg-idle  48 1 pg-trigger  0 pg-at
+0 1 us pg-wait                \ 0: wait for BTN0, then 1 us low
+3 500 ns pg-step              \ 1: clock and frame high
+2 500 ns 1 8 pg-loop          \ 2: clock low; steps 1-2 play 8 times
+0 2 us 0 pg-jump              \ 3: 2 us low, then wait again
+pg-start
+```
+
+**Status.** `pg-status` returns:
+
+| Bit | Value | Meaning |
+|---|---|---|
+| 0 | 1 | playing (also while waiting) |
+| 1 | 2 | waiting for the trigger |
+| 2 | 4 | ended (at a `pg-end` step) |
+| 3 | 8 | a step word was refused because a pattern played (cleared by `pg-start`, `pg-stop`) |
+| 4 | 16 | a step ran late (below; cleared by `pg-start`) |
+| 5 | 32 | repeats nested more than four deep (cleared by `pg-start`, `pg-stop`) |
+| 6 | 64 | busy: a command has not reached the generator yet |
+
+**Timing.** Every step lasts exactly its duration, also many 5 ns steps in a row. The
+generator reads its steps ahead into a 16-step buffer, one step per tick, but each jump or
+repeat costs it one tick, which it makes up during longer steps. So one rule applies to
+anything that repeats for long: **one pass must last at least one tick more than it has
+steps**. A repeat of two 5 ns steps cannot keep up; one 5 ns step and one 10 ns step can. If
+the generator falls behind, the step playing is stretched by a tick (its levels stay right)
+and status bit 4 is set. The app warns about such repeats before loading.
+
+`pg-start` plays the first step about 0.1 µs later; until then the pins show the idle
+levels. A trigger edge is seen 10 to 15 ns after it happens (the input is synchronized to
+the 200 MHz clock), then the wait step's duration runs. Edges that come while no step is
+waiting are ignored. With nothing connected, shield inputs read 1 (pull-ups), so a pin
+trigger on the rising edge needs a signal.
+
+**Checking it without an instrument.** `pg-out@`, `pg-pc` and the board view (section
+2.9) show slow patterns live. The millisecond timer measures long ones:
+
+```
+: run-time ( -- ms ) ms@ pg-start begin pg-status 4 and until ms@ swap - ;
+pg-stop 0 pg-at  1 1000 msec pg-step  0 pg-end  run-time .   \ 1000
+```
+
+**Registers.** At `$80C0`; the words above use them. Details in
+[PatternGenerator.md](PatternGenerator.md).
+
+| Address | Read | Write |
+|---|---|---|
+| `$80C0` | status | bit 0 start, bit 1 stop, bit 2 software trigger |
+| `$80C2` | step playing | where the next step is stored |
+| `$80C4` | levels now | the step's levels |
+| `$80C6`, `$80C8` | | the step's duration, low and high 16 bits |
+| `$80CA` | | operation (bits 15..12: 0 step, 1 repeat, 2 jump, 3 wait, 4 end) and target step (bits 11..0) |
+| `$80CC` | | the repeat count; writing it stores the step and moves to the next |
+| `$80CE` | enable mask | enable mask |
+| `$80D0` | idle levels | idle levels |
+| `$80D2` | trigger | trigger: bits 5..0 source, bits 9..8 edge |
+| `$80D4` | where the next step goes | – |
+
+### 5.15 Defining words
 
 | Word | Stack | Description |
 |---|---|---|
@@ -897,7 +1117,7 @@ of its old version:
 
 Use `recurse` to call the word being defined.
 
-### 5.15 Control structures
+### 5.16 Control structures
 
 These are immediate and work **only inside colon definitions**.
 
@@ -934,7 +1154,7 @@ table 1 2 2 4  ok
 : find3 10 0 do i 3 = if ." found" unloop exit then loop ." none" ;
 ```
 
-### 5.16 Compiler and execution
+### 5.17 Compiler and execution
 
 | Word | Stack | Description |
 |---|---|---|
@@ -955,7 +1175,7 @@ five . 5  ok
 : quiet shout ;  loud ok       \ shout ran while quiet was compiled
 ```
 
-### 5.17 Comments
+### 5.18 Comments
 
 | Word | Description |
 |---|---|
@@ -965,7 +1185,7 @@ five . 5  ok
 Both work at the terminal and inside definitions. Like every Forth word, each needs a
 space after it.
 
-### 5.18 Interpreter and system
+### 5.19 Interpreter and system
 
 | Word | Stack | Description |
 |---|---|---|
@@ -974,13 +1194,13 @@ space after it.
 | `abort` | `( -- )` | Clear the data stack and return to the interpreter loop. |
 | `cold` | `( -- )` | Restart: decimal base, banner, LD0 on, interpreter loop. Your definitions stay. |
 
-### 5.19 Variables used by the system
+### 5.20 Variables used by the system
 
 | Word | Content |
 |---|---|
 | `dp` | Dictionary pointer: the value `here` returns. |
 | `latest` | Header address of the newest word. |
-| `state` | Compile state (section 5.16). |
+| `state` | Compile state (section 5.17). |
 | `base` | Number base (section 5.9). |
 | `tib` | Terminal input buffer (82 bytes). |
 | `#tib` | Number of characters in the current input line. |
@@ -989,7 +1209,7 @@ space after it.
 | `sbuf`, `sn` | Buffer and count used by `.s`. |
 | `ssnap`, `sdepth` | The copy of the data stack `snap` makes before each line (20 cells, bottom first) and its depth, -1 while copying; the ARM reads them for the app. |
 
-### 5.20 Internal words
+### 5.21 Internal words
 
 These words are visible in `words` and can be used, but they mainly exist for the kernel.
 
@@ -1048,7 +1268,7 @@ These words are visible in `words` and can be used, but they mainly exist for th
 
 | Word | Stack | Description |
 |---|---|---|
-| `snap` | `( -- )` | Copy the data stack into `ssnap` and its depth into `sdepth`, leaving the stack as it was; `quit` runs it before each line, for the app's stack view (section 2.6). |
+| `snap` | `( -- )` | Copy the data stack into `ssnap` and its depth into `sdepth`, leaving the stack as it was; `quit` runs it before each line, for the app's stack view (section 2.7). |
 | `accept-line` | `( -- )` | Read one line from the terminal into `tib`, with echo and backspace. |
 | `interpret` | `( -- )` | Interpret or compile the rest of the line. |
 | `interpret-word` | `( a u -- )` | Handle one word: execute, compile, inline, or convert as a number. |
@@ -1177,6 +1397,37 @@ volts
 bar
 ```
 
+### 6.3 Pattern generator
+
+These need no extra hardware: the board view (tick **Board**) shows the Pmod channels.
+
+**A slow counter** on channels 0..3, one count every quarter second, visible in the board
+view:
+```forth
+pg-stop  $F pg-enable  0 pg-at
+: counts 16 0 do i 250 msec pg-step loop ;
+counts  15 pg-at  15 250 msec 0 pg-jump  pg-start
+```
+Step 15 is stored again as a jump back to step 0. `pg-pc .` shows the step playing.
+
+**A square wave of 10 MHz** on channel 0 (50 ns high, 50 ns low):
+```forth
+pg-stop  1 pg-enable  0 pg-at
+1 50 ns pg-step  0 50 ns 0 pg-jump  pg-start
+```
+
+**Waiting for a button.** A press of BTN1 gives a 2 µs pulse on channel 8 (JB1). The
+generator sees the button directly, without debouncing, so a bouncing contact can give a
+few pulses:
+```forth
+pg-stop  $100 pg-enable  49 1 pg-trigger  0 pg-at
+0 1 0 pg-wait  $100 2 us pg-step  0 1 0 0 pg-jump  pg-start
+pg-status .                 \ 3: playing and waiting
+```
+
+**The example patterns** in `examples/patterns` open in the app's *Pattern* tab
+(section 2.6): `counter`, `burst` and `clock-marker`.
+
 ---
 
 ## 7. Differences from standard Forth
@@ -1258,10 +1509,15 @@ Workflow:
 | The board hangs at power-up, or misbehaves from the start | The saved source does it: switch on with BTN3 held to skip it (section 4.7). |
 | A0..A5 read about 0 mV after loading over JTAG | JP4 was on QSPI, so the FSBL from flash ran first. Set JP4 to JTAG, power-cycle and load again. |
 | Forth stops responding | A word is in an endless loop or waiting for `key`. Press any key, or Ctrl-R (*Restart* in the app). |
-| Your words are gone | A restart or a power cycle reloads the original kernel. Keep useful definitions in a file and run it, save it as the board's source (section 2.7), or add them to `kernel.fs`. |
+| Your words are gone | A restart or a power cycle reloads the original kernel. Keep useful definitions in a file and run it, save it as the board's source (section 2.8), or add them to `kernel.fs`. |
 | Pasting a long text into a terminal program loses characters | The ARM queues up to 64 KB for Forth, so this only happens with very large pastes; the app's *Run all* sends large texts in pieces. |
 | Numbers look wrong, or every number gives `?` | Check `base`: after `hex` or `2 base !`, input and output both use that base, and an error doesn't reset it. `decimal` switches back. |
 | A long line gives an error near its end | Only 80 characters fit on a line; the rest is dropped, possibly in the middle of a word. Split the line. |
 | A shield output doesn't change | The pin is still an input: `n output` first. Check the pin number against the board label (section 5.11). |
 | An analog reading is near 3300 mV on A0..A5 without a signal | The same pin is a digital output driving high (`14 input` … `19 input`). |
 | An analog reading on A6..A11 stays at 0 | The − pin is above the + pin, or the − pin is not connected to GND. |
+| ` pattern running` when storing pattern steps | The generator plays: `pg-stop` first (section 5.14). The app's *Load & start* does it for you. |
+| The pattern plays but the Pmod pins stay undriven | The channels are not enabled: `$FFFF pg-enable` (or tick them in the app). Every start of Forth disables them. |
+| `pg-status` shows bit 4 (late), the board view *late* | A repeat or jump loop with steps too short for the generator: one pass needs at least one tick more than it has steps (section 5.14, *Timing*). |
+| A wait step never goes on | The trigger source or edge is wrong, or the pin never changes (open shield inputs read 1). `pg-trig` goes on by hand. |
+| The board view says *firmware 2.2 needed* | The board runs older firmware without the pattern generator: flash the current `BOOT.bin` (chapter 1). |

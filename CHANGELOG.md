@@ -17,7 +17,8 @@
   limits and timing rule, loads it as Forth (**Load & start**) or puts the Forth into the
   source editor. Patterns are saved as `.pattern` files (examples in `examples/patterns`).
   The board view shows Pmod JA/JB as the generator drives them and its state.
-- Still to come before the release: the manual chapter.
+- Manual: section 2.6 (the pattern editor), 5.14 (the pattern generator, with the Pmod
+  JA/JB pinout), 6.3 (examples) and troubleshooting rows; the pinout also in the README.
 
 ## 2.1 — 2026-11-02
 

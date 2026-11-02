@@ -32,11 +32,19 @@ time step, independent of the 50 MHz Forth CPU.
 | 6 | JA9 | W18 | | 14 | JB9 | V12 |
 | 7 | JA10 | W19 | | 15 | JB10 | W13 |
 
+```
+          Pmod JA                               Pmod JB
+ pin    1    2    3    4    5    6        1    2    3    4    5    6
+      CH0  CH1  CH2  CH3  GND  3V3      CH8  CH9  CH10 CH11 GND  3V3
+      CH4  CH5  CH6  CH7  GND  3V3      CH12 CH13 CH14 CH15 GND  3V3
+ pin    7    8    9   10   11   12        7    8    9   10   11   12
+```
+
 Pmod pins 5/11 are GND and 6/12 are 3.3 V. Outputs are LVCMOS33 (fast slew, 8 mA), registered in
 the I/O block on the 200 MHz clock, so all channels switch on the same clock edge. A channel that
-is not enabled is high-impedance; after power-up and after each Forth restart all are. Before the bitstream changes, the Pmod table in Digilent's Arty Z7 reference manual
-gets checked for series resistors on JA/JB (high-speed Pmods have 0 Ω, so the outputs are not
-short-circuit protected; this goes into the manual).
+is not enabled is high-impedance; after power-up and after each Forth restart all are. JA and JB are the Arty Z7's high-speed Pmod headers (their data pins are routed as
+differential pairs); Digilent fits these with 0 Ω shunts instead of protection resistors, so
+the outputs are not protected against a short. The manual says so.
 
 ## The sequencer
 
