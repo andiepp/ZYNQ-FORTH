@@ -177,7 +177,8 @@ are snapshots at the polling rate (a few per second), not a logic analyzer.
 - Select a run of steps → "Repeat…" (count, or forever); repeats show as brackets above the steps
   and may nest 4 deep. Mark a step as "wait for trigger". Choose what happens at the end: stop,
   restart from the beginning, or restart from a chosen step.
-- Trigger source and edge, enable mask and idle levels in the panel's header.
+- Trigger source and edge in the panel's header; the enables beside the diagram; the idle
+  levels in the diagram's first column (click to switch), with the edge into step 0 drawn.
 - **Load** sends the generated Forth to the board and starts it. **To editor** inserts the same
   Forth into the source editor (to save it with autostart or edit it further). **Start/Stop**.
 - Patterns are saved as `.pattern` files (JSON: channel names, steps, repeats, settings).

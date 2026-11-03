@@ -9,10 +9,11 @@ using ZynqForth.ViewModels;
 namespace ZynqForth.Controls;
 
 /// <summary>
-/// The pattern as a timing diagram: one row per channel, one column per step, the column width
-/// growing with the logarithm of the duration. Repeats are brackets above the steps, wait steps
-/// carry a T. Click the header to select steps (Shift extends), click or drag in a row to set
-/// levels. Colours come from the skin.
+/// The pattern as a timing diagram: an idle column (the levels while stopped), then one column
+/// per step, the column width growing with the logarithm of the duration, one row per channel.
+/// Repeats are brackets above the steps, wait steps carry a T. Click the header to select steps
+/// (Shift extends), click or drag in a row to set levels, click the idle column to switch a
+/// channel's idle level. Colours come from the skin.
 /// </summary>
 public sealed class PatternView : FrameworkElement
 {
@@ -24,6 +25,10 @@ public sealed class PatternView : FrameworkElement
 
     private const double BracketStep = 12;
     private const double HeaderHeight = 30;
+    private const double IdleWidth = 40;
+
+    /// <summary>The step number <see cref="Hit"/> gives the idle column.</summary>
+    private const int IdleColumn = -2;
 
     private bool? paint;                        // the level a drag paints
     private (int Step, int Channel) lastCell = (-1, -1);
@@ -77,6 +82,7 @@ public sealed class PatternView : FrameworkElement
     private double[] ColumnEdges(Pattern pattern)
     {
         var edges = new double[pattern.Steps.Count + 1];
+        edges[0] = IdleWidth;
         for (int i = 0; i < pattern.Steps.Count; i++)
         {
             edges[i + 1] = edges[i] + ColumnWidth(pattern.Steps[i].Ticks);
@@ -164,6 +170,8 @@ public sealed class PatternView : FrameworkElement
         }
 
         dc.DrawLine(grid, new Point(x[^1], top - HeaderHeight), new Point(x[^1], bottom));
+        dc.DrawRectangle(WithOpacity(dim, 0.10), null, new Rect(0, top - HeaderHeight, IdleWidth, bottom - top + HeaderHeight));
+        Center(dc, "idle", IdleWidth / 2, top - HeaderHeight + 8, dim, 10, false);
         string end = pattern.End == PatternEnd.Stop ? "end: idle" : $"↺ step {pattern.RestartAt}";
         dc.DrawText(Format(end, dim, 10, false), new Point(x[^1] + 6, top - HeaderHeight + 8));
 
@@ -176,7 +184,12 @@ public sealed class PatternView : FrameworkElement
             var pen = new Pen(enabled ? accent : dim, enabled ? 1.6 : 1);
             Brush fill = WithOpacity(enabled ? accent : dim, 0.18);
             double high = y0 + 4, low = y0 + RowHeight - 4;
-            bool? previous = null;
+            var dashed = new Pen(dim, 1) { DashStyle = DashStyles.Dash };
+
+            // before the start: the idle level; the edge into step 0 is a real one
+            bool idle = (pattern.Idle & (1 << c)) != 0;
+            dc.DrawLine(dashed, new Point(4, idle ? high : low), new Point(x[0], idle ? high : low));
+            bool? previous = idle;
             for (int i = 0; i < pattern.Steps.Count; i++)
             {
                 bool level = (pattern.Steps[i].Levels & (1 << c)) != 0;
@@ -199,7 +212,6 @@ public sealed class PatternView : FrameworkElement
             bool after = pattern.End == PatternEnd.Stop
                 ? (pattern.Idle & (1 << c)) != 0
                 : pattern.RestartAt < pattern.Steps.Count && (pattern.Steps[pattern.RestartAt].Levels & (1 << c)) != 0;
-            var dashed = new Pen(dim, 1) { DashStyle = DashStyles.Dash };
             if (previous is bool last && last != after)
             {
                 dc.DrawLine(dashed, new Point(x[^1], high), new Point(x[^1], low));
@@ -217,12 +229,27 @@ public sealed class PatternView : FrameworkElement
     {
         base.OnMouseLeftButtonDown(e);
         Focus();
-        if (Editor is not { } editor || Hit(e.GetPosition(this)) is not { } hit || hit.Step < 0)
+        if (Editor is not { } editor || Hit(e.GetPosition(this)) is not { } hit)
         {
             return;
         }
 
         (int step, int channel) = hit;
+        if (step == IdleColumn)
+        {
+            if (channel >= 0)
+            {
+                editor.ToggleIdle(channel);
+            }
+
+            return;
+        }
+
+        if (step < 0)
+        {
+            return;
+        }
+
         if (channel < 0)
         {
             editor.Select(step, Keyboard.Modifiers.HasFlag(ModifierKeys.Shift));
@@ -311,15 +338,20 @@ public sealed class PatternView : FrameworkElement
         }
 
         double[] x = ColumnEdges(pattern);
-        int step = Array.FindIndex(x, 1, e => point.X < e) - 1;
-        if (step < 0 || step >= pattern.Steps.Count)
+        double top = TopOf(pattern);
+        int channel = point.Y < top ? -1 : (int)((point.Y - top) / RowHeight);
+        if (channel >= Pattern.ChannelCount)
         {
             return (-1, -1);
         }
 
-        double top = TopOf(pattern);
-        int channel = point.Y < top ? -1 : (int)((point.Y - top) / RowHeight);
-        return channel >= Pattern.ChannelCount ? (-1, -1) : (step, channel);
+        if (point.X < IdleWidth)
+        {
+            return (IdleColumn, channel);
+        }
+
+        int step = Array.FindIndex(x, 1, e => point.X < e) - 1;
+        return step < 0 || step >= pattern.Steps.Count ? (-1, -1) : (step, channel);
     }
 
     private void Center(DrawingContext dc, string value, double cx, double y, Brush brush, double size, bool bold)

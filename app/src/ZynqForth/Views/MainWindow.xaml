@@ -168,19 +168,25 @@
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <ItemsControl ItemsSource="{Binding Patterns.Channels}" Margin="{Binding Patterns.ChannelsMargin}" Focusable="False">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal" Height="20">
-                                                        <CheckBox IsChecked="{Binding Enabled}" Margin="4,0,2,0" ToolTip="Driven by the generator; otherwise the pin is not driven" />
-                                                        <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="62" FontSize="11" Padding="1,0"
-                                                                 BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
-                                                                 ToolTip="The channel's name (Pmod JA1-4, 7-10 = channels 0-7, JB = 8-15)" />
-                                                        <CheckBox IsChecked="{Binding Idle}" Margin="2,0,4,0" ToolTip="Idle level high: while stopped and after the end" />
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                        <StackPanel>
+                                            <!-- as high as the diagram's brackets and header, the label at its bottom -->
+                                            <Border Height="{Binding Patterns.ChannelsTop}">
+                                                <TextBlock Text="on" Style="{StaticResource Zf.Dim}" FontSize="10" Margin="5,0,0,4"
+                                                           VerticalAlignment="Bottom" ToolTip="Enabled: driven by the generator" />
+                                            </Border>
+                                            <ItemsControl ItemsSource="{Binding Patterns.Channels}" Focusable="False">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal" Height="20">
+                                                            <CheckBox IsChecked="{Binding Enabled}" Margin="4,0,2,0" ToolTip="Driven by the generator; otherwise the pin is not driven" />
+                                                            <TextBox Text="{Binding Name, UpdateSourceTrigger=LostFocus}" Width="62" FontSize="11" Padding="1,0"
+                                                                     BorderThickness="0" Background="Transparent" VerticalContentAlignment="Center"
+                                                                     ToolTip="The channel's name (Pmod JA1-4, 7-10 = channels 0-7, JB = 8-15)" />
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                         <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                                             <controls:PatternView Editor="{Binding Patterns}" HorizontalAlignment="Left" VerticalAlignment="Top" />
                                         </ScrollViewer>

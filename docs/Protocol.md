@@ -188,15 +188,15 @@ The saved source is the same flash sector the `store` request writes.
 `tools/zforth.py` is a complete client (it needs pyserial):
 
 ```
-python tools/zforth.py -p COM17 version status "send:2 3 + ." stack words
-python tools/zforth.py -p COM17 store:lights.fs:on restart wait:2
+python tools/zforth.py -p COMx version status "send:2 3 + ." stack words
+python tools/zforth.py -p COMx store:lights.fs:on restart wait:2
 ```
 
 The reading side in a few lines:
 
 ```python
 import serial
-port = serial.Serial('COM17', 115200, timeout=2)
+port = serial.Serial('COMx', 115200, timeout=2)     # the board's port
 port.write(b'\x01status\n')
 while port.read(1) != b'\x01':          # skip Forth's output
     pass

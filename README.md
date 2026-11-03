@@ -90,14 +90,19 @@ pg-stop 1 pg-enable 0 pg-at  1 500 ns pg-step  0 500 ns 0 pg-jump  pg-start
 
 Needs AMD/Xilinx **Vivado and Vitis 2023.2** (the Arty Z7-20 board files are included in
 that version), **Python 3** and the **.NET 10 SDK**. The Xilinx launchers are not on PATH;
-call them by their full path (here `I:\Xilinx\…`). From the repository root:
+call them by their full path, below through `$xilinx`, the folder Vivado and Vitis are
+installed in. The PowerShell scripts find Vivado and Vitis themselves (`XILINX_VIVADO`,
+`XILINX_VITIS`, or `\Xilinx\…\2023.2` on any drive; else pass `-Vivado` / `-Vitis`). From the
+repository root:
 
 ```powershell
+$xilinx = 'C:\Xilinx'      # where Vivado and Vitis 2023.2 are installed
+
 # bitstream and hardware description: build\hw\forth.bit, forth.xsa (~5 minutes)
-I:\Xilinx\Vivado\2023.2\bin\vivado.bat -mode batch -nojournal -nolog -source hw/build_hw.tcl
+& "$xilinx\Vivado\2023.2\bin\vivado.bat" -mode batch -nojournal -nolog -source hw/build_hw.tcl
 
 # kernel image and ARM program: build\sw\forth_app\Debug\forth_app.elf
-I:\Xilinx\Vitis\2023.2\bin\xsct.bat sw/build_sw.tcl
+& "$xilinx\Vitis\2023.2\bin\xsct.bat" sw/build_sw.tcl
 
 # boot image: build\boot\BOOT.bin
 .\sw\build_boot.ps1
@@ -112,7 +117,7 @@ To put it on the board:
 - **Flash** (permanent): JP4 to JTAG, power on, `.\sw\program_flash.ps1`, then JP4 to QSPI
   and power-cycle.
 - **JTAG** (until power-off, for development): JP4 to JTAG, power on,
-  `I:\Xilinx\Vitis\2023.2\bin\xsct.bat sw/run.tcl`.
+  `& "$xilinx\Vitis\2023.2\bin\xsct.bat" sw/run.tcl`.
 
 A kernel change (`forth/kernel.fs`) needs only `sw/build_sw.tcl` and a new boot image, no new
 bitstream. Test it first in the simulator: `python tools/hf16.py run forth/kernel.fs -f sim/smoke.txt`.

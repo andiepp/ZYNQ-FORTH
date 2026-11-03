@@ -3,7 +3,7 @@
 #        (from a release's firmware folder): .\program_flash.ps1 -Vitis <Vitis or Vivado Lab bin folder>
 # Set JP4 to JTAG while programming, then to QSPI and power-cycle to boot from flash.
 param(
-    [string]$Vitis = 'I:\Xilinx\Vitis\2023.2\bin',
+    [string]$Vitis,
     [string]$Image,
     [string]$Fsbl
 )
@@ -21,6 +21,12 @@ if (-not $Fsbl) {
 }
 foreach ($f in $Image, $Fsbl) {
     if (-not (Test-Path $f)) { throw "missing $f, run sw\build_boot.ps1 first" }
+}
+# Vitis 2023.2's bin folder: -Vitis, else $env:XILINX_VITIS, else \Xilinx\Vitis\2023.2 on any drive (or pass Vivado Lab's bin folder)
+if (-not $Vitis) {
+    $Vitis = @($env:XILINX_VITIS) + (Get-PSDrive -PSProvider FileSystem | ForEach-Object { Join-Path $_.Root 'Xilinx\Vitis\2023.2' }) |
+        Where-Object { $_ -and (Test-Path (Join-Path $_ 'bin\program_flash.bat')) } | ForEach-Object { Join-Path $_ 'bin' } | Select-Object -First 1
+    if (-not $Vitis) { throw 'Vitis 2023.2 not found: pass -Vitis <Vitis folder>\bin' }
 }
 $tool = Join-Path $Vitis 'program_flash.bat'
 if (-not (Test-Path $tool)) { throw "missing $tool, pass -Vitis <folder with program_flash.bat>" }

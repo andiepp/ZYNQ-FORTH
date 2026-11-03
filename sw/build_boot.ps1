@@ -2,9 +2,15 @@
 # Usage (from the repository root, after hw/build_hw.tcl and sw/build_sw.tcl): .\sw\build_boot.ps1
 # Output: build\boot\BOOT.bin, written to flash by sw\program_flash.ps1
 param(
-    [string]$Vitis = 'I:\Xilinx\Vitis\2023.2\bin'
+    [string]$Vitis
 )
 $ErrorActionPreference = 'Stop'
+# Vitis 2023.2's bin folder: -Vitis, else $env:XILINX_VITIS, else \Xilinx\Vitis\2023.2 on any drive
+if (-not $Vitis) {
+    $Vitis = @($env:XILINX_VITIS) + (Get-PSDrive -PSProvider FileSystem | ForEach-Object { Join-Path $_.Root 'Xilinx\Vitis\2023.2' }) |
+        Where-Object { $_ -and (Test-Path (Join-Path $_ 'bin\bootgen.bat')) } | ForEach-Object { Join-Path $_ 'bin' } | Select-Object -First 1
+    if (-not $Vitis) { throw 'Vitis 2023.2 not found: pass -Vitis <Vitis folder>\bin' }
+}
 $root = Split-Path $PSScriptRoot -Parent
 $out = Join-Path $root 'build\boot'
 

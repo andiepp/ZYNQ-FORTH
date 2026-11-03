@@ -41,12 +41,22 @@ Contents:
 
 ### Put ZYNQ-FORTH on the board
 
+Paths in this manual are relative to the **ZYNQ-FORTH folder**: the repository, or the
+folder of an unpacked release. Commands run in that folder.
+
 The board starts ZYNQ-FORTH from its QSPI flash when jumper **JP4** is on **QSPI**. To write
-the flash once (from the repository root, with Vitis 2023.2; see the README for building):
+the flash once:
 
 1. Set JP4 to **JTAG** and switch the board on.
-2. Run `.\sw\program_flash.ps1`. It writes `build\boot\BOOT.bin` and verifies it.
+2. Run the flash script. It writes the boot image and verifies it:
+   - from a release: `.\firmware\program_flash.ps1` (it writes `firmware\BOOT.bin`);
+   - from the repository, after building (README): `.\sw\program_flash.ps1` (it writes
+     `build\boot\BOOT.bin`).
 3. Set JP4 to **QSPI** and switch the board off and on.
+
+The script needs `program_flash` from AMD/Xilinx Vitis 2023.2 (or Vivado Lab). It finds
+Vitis by `XILINX_VITIS` or in `\Xilinx\Vitis\2023.2` on any drive; installed elsewhere,
+pass its `bin` folder: `.\firmware\program_flash.ps1 -Vitis <Vitis folder>\bin`.
 
 LD0 lights up when Forth runs. The flash keeps ZYNQ-FORTH until something else is written
 there; a Forth source you save from the app (section 2.8) lives in a sector of its own.
@@ -56,13 +66,14 @@ instead (JP4 on JTAG; it lasts until the board is switched off).
 
 ### Connect
 
-Plug in the USB cable. Windows shows the board as a USB serial port (for example COM17;
-the Device Manager lists it under *Ports*). Start the app, choose that port and click
+Plug in the USB cable. Windows shows the board as a USB serial port. Its number differs
+from PC to PC (COM3, COM7, COM17 …); the Device Manager lists it under *Ports*, and this
+manual writes it as **COMx**. Start the app, choose that port and click
 **Connect** (chapter 2). Or use a terminal program:
 
 | Setting | Value |
 |---|---|
-| Port | the board's USB serial port, e.g. COM17 |
+| Port | the board's USB serial port, COMx |
 | Speed | 115200 baud, 8 data bits, no parity, 1 stop bit, no handshake |
 | Enter key | sends CR (PuTTY's default) |
 | Local echo | off (Forth echoes what you type) |
@@ -123,8 +134,9 @@ If the board does not answer, the app says so and disconnects: check that ZYNQ-F
 the board (chapter 1) and that no other program has the port open. **Disconnect** frees
 the port for a terminal program. While the app is connected, only it can use the port.
 
-Start options, for a shortcut: `ZynqForth.exe [--skin "Lab panel"] [--connect [COM17]] [file.fs]`
-connects at once, chooses a skin, or opens a file in the editor.
+Start options, for a shortcut: `ZynqForth.exe [--skin "Lab panel"] [--connect [COMx]] [file.fs | file.pattern]`
+connects at once (to COMx, or without it to the port the app remembers), chooses a skin, or
+opens a file in the source or pattern editor.
 
 ### 2.2 The layout
 
@@ -203,22 +215,29 @@ for a duration, in ticks of 5 ns.
 
 ![The pattern editor with a triggered burst](images/app-pattern.png)
 
-**The timing diagram.** One row per channel, one column per step. A column's header shows
-the step's number and duration, and long steps get wider columns, so 5 ns and one second
-both stay readable. Repeats are brackets above their steps, labelled ×8 or ×∞; a wait step
+**The timing diagram.** One row per channel. The first column, **idle**, shows the idle
+levels: what the pins carry while the generator is stopped and before the first step (drawn
+dashed). Then comes one column per step. A column's header shows the step's number and
+duration, and long steps get wider columns, so 5 ns and one second both stay readable. Repeats are brackets above their steps, labelled ×8 or ×∞; a wait step
 has a **T** before its number; after the last step the diagram shows what follows: *end:
 idle* or *↺ step n*. While a pattern plays on the board, a marker above the header shows the
 step the generator is at.
 
 - **Click a cell** to switch the channel's level in that step; **drag** across cells to
   paint that level.
+- **Click a cell of the idle column** to switch the channel's idle level. The edge from the
+  idle level into step 0 is drawn like any other: it is the first edge the pin makes when
+  the pattern starts.
 - **Click a header** to select a step; **Shift**+click selects a range. The arrow keys move
   the selection (Shift extends it), **Del** deletes, **Ins** inserts, **Ctrl+D** duplicates,
   **Ctrl+Z** undoes.
 
-**Beside the diagram**, each channel has a box for *enabled* (the generator drives the
-pin; a channel that is not enabled is not driven), its **name**, and a box for its **idle
-level** (the level while stopped and after the end).
+**Beside the diagram**, each channel has its **on** box (enabled: the generator drives the
+pin; a channel that is not enabled is not driven) and its **name**.
+
+Everything set here, the levels, the idle column, the trigger and what happens at the end,
+reaches the board only with **Load & start** (below); **Start** replays what the board
+already holds. The trigger only acts on **wait** steps: a pattern without one never waits.
 
 **The toolbar** works on the selected steps:
 

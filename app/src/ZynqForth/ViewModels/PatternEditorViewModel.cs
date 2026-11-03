@@ -210,7 +210,7 @@ public sealed class PatternEditorViewModel : ObservableObject
     public bool Restarts => Pattern.End == PatternEnd.Restart;
 
     /// <summary>Where the diagram's first channel row starts, for the channel list beside it.</summary>
-    public System.Windows.Thickness ChannelsMargin => new(0, Controls.PatternView.TopOf(Pattern), 0, 0);
+    public double ChannelsTop => Controls.PatternView.TopOf(Pattern);
 
     /// <summary>The restart step box.</summary>
     public string RestartText
@@ -261,6 +261,13 @@ public sealed class PatternEditorViewModel : ObservableObject
     }
 
     public bool Level(int step, int channel) => (Pattern.Steps[step].Levels & (1 << channel)) != 0;
+
+    /// <summary>Switches a channel's idle level (the diagram's idle column).</summary>
+    public void ToggleIdle(int channel)
+    {
+        Change(p => p.Idle ^= (ushort)(1 << channel));
+        Channels[channel].Refresh();
+    }
 
     /// <summary>Sets one level without an undo point (the view takes one per gesture).</summary>
     public void SetLevel(int step, int channel, bool high)
@@ -453,7 +460,7 @@ public sealed class PatternEditorViewModel : ObservableObject
         OnPropertyChanged(nameof(HasErrors));
         OnPropertyChanged(nameof(Summary));
         OnPropertyChanged(nameof(Restarts));
-        OnPropertyChanged(nameof(ChannelsMargin));
+        OnPropertyChanged(nameof(ChannelsTop));
         Changed?.Invoke();
     }
 
@@ -483,7 +490,7 @@ public sealed class PatternEditorViewModel : ObservableObject
         }
 
         foreach (string name in new[] { nameof(Title), nameof(Messages), nameof(HasErrors), nameof(Summary), nameof(Restarts),
-                                        nameof(ChannelsMargin), nameof(TriggerIndex), nameof(EdgeIndex), nameof(EndIndex), nameof(RestartText) })
+                                        nameof(ChannelsTop), nameof(TriggerIndex), nameof(EdgeIndex), nameof(EndIndex), nameof(RestartText) })
         {
             OnPropertyChanged(name);
         }

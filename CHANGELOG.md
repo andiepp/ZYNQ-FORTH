@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- App: the timing diagram starts with an **idle** column: the idle levels, switched by a
+  click, and the edge from them into step 0; it replaces the idle check boxes. The channel
+  list's enable boxes get an "on" header.
+- Scripts: `sim/run_sim.ps1`, `sim/run_patgen.ps1`, `sw/build_boot.ps1` and
+  `sw/program_flash.ps1` find Vivado / Vitis 2023.2 themselves (`XILINX_VIVADO`,
+  `XILINX_VITIS`, or `\Xilinx\…\2023.2` on any drive) instead of a fixed `I:\Xilinx`.
+- Manual, README, Protocol.md: the serial port written as COMx, paths relative to the
+  ZYNQ-FORTH folder, the release's flash script, and when editor settings reach the board.
+
 ## 2.2.1 — 2026-11-03
 
 - App 2.2.1: the board view draws the Pmod headers JA and JB as they look on the board,
