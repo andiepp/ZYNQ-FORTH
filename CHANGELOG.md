@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.1 — 2026-11-03
+
+- App 2.2.1: the board view draws the Pmod headers JA and JB as they look on the board,
+  3.3 V and GND at the left, then pins 4..1 over 10..7 (2.2 had them mirrored).
+- Manual, README and docs/PatternGenerator.md: the pinout diagram in the same orientation.
+- Firmware, bitstream and kernel unchanged (2.2, the same BOOT.bin).
+
 ## 2.2 — 2026-11-02
 
 - Pattern generator (docs/PatternGenerator.md): 16 channels on Pmod JA and JB, played in

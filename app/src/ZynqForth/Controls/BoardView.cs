@@ -69,20 +69,20 @@ public sealed class BoardView : FrameworkElement
         foreach ((string name, int first, double y) in new[] { ("JA", 0, 56.0), ("JB", 8, 112.0) })
         {
             Label(dc, name, left - 20, y + 11, text, 10);
-            // pins 1..4 over 7..10, then GND and VCC at 5/11 and 6/12
+            // as on the board: VCC (pins 6/12) and GND (5/11) at the left, then pins 4..1 over 10..7
             for (int row = 0; row < 2; row++)
             {
                 for (int col = 0; col < 6; col++)
                 {
                     var rect = new Rect(left + col * 22, y + row * 22, 18, 18);
-                    if (col >= 4)
+                    if (col < 2)
                     {
                         dc.DrawRectangle(pcb, outline, rect);
-                        Label(dc, col == 4 ? "G" : "V", rect.X + 9, rect.Y + 3, text, 9, align: TextAlignment.Center);
+                        Label(dc, col == 1 ? "G" : "V", rect.X + 9, rect.Y + 3, text, 9, align: TextAlignment.Center);
                         continue;
                     }
 
-                    int channel = first + row * 4 + col;
+                    int channel = first + row * 4 + (5 - col);
                     bool enabled = pg is not null && (pg.Enabled & (1 << channel)) != 0;
                     bool level = pg is not null && (pg.Levels & (1 << channel)) != 0;
                     dc.DrawRectangle(!enabled ? off : level ? driven : drivenLow, outline, rect);

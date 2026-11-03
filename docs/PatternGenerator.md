@@ -34,13 +34,13 @@ time step, independent of the 50 MHz Forth CPU.
 
 ```
           Pmod JA                               Pmod JB
- pin    1    2    3    4    5    6        1    2    3    4    5    6
-      CH0  CH1  CH2  CH3  GND  3V3      CH8  CH9  CH10 CH11 GND  3V3
-      CH4  CH5  CH6  CH7  GND  3V3      CH12 CH13 CH14 CH15 GND  3V3
- pin    7    8    9   10   11   12        7    8    9   10   11   12
+ pin    6    5    4    3    2    1        6    5    4    3    2    1
+      3V3  GND  CH3  CH2  CH1  CH0      3V3  GND  CH11 CH10 CH9  CH8
+      3V3  GND  CH7  CH6  CH5  CH4      3V3  GND  CH15 CH14 CH13 CH12
+ pin   12   11   10    9    8    7       12   11   10    9    8    7
 ```
 
-Pmod pins 5/11 are GND and 6/12 are 3.3 V. Outputs are LVCMOS33 (fast slew, 8 mA), registered in
+As the headers look on the board. Pmod pins 5/11 are GND and 6/12 are 3.3 V. Outputs are LVCMOS33 (fast slew, 8 mA), registered in
 the I/O block on the 200 MHz clock, so all channels switch on the same clock edge. A channel that
 is not enabled is high-impedance; after power-up and after each Forth restart all are. JA and JB are the Arty Z7's high-speed Pmod headers (their data pins are routed as
 differential pairs); Digilent fits these with 0 Ω shunts instead of protection resistors, so

@@ -54,12 +54,14 @@ More in [examples/](examples).
 
 ### Pattern generator pinout
 
+As the headers look on the board, 3.3 V and GND at the left:
+
 ```
           Pmod JA                               Pmod JB
- pin    1    2    3    4    5    6        1    2    3    4    5    6
-      CH0  CH1  CH2  CH3  GND  3V3      CH8  CH9  CH10 CH11 GND  3V3
-      CH4  CH5  CH6  CH7  GND  3V3      CH12 CH13 CH14 CH15 GND  3V3
- pin    7    8    9   10   11   12        7    8    9   10   11   12
+ pin    6    5    4    3    2    1        6    5    4    3    2    1
+      3V3  GND  CH3  CH2  CH1  CH0      3V3  GND  CH11 CH10 CH9  CH8
+      3V3  GND  CH7  CH6  CH5  CH4      3V3  GND  CH15 CH14 CH13 CH12
+ pin   12   11   10    9    8    7       12   11   10    9    8    7
 ```
 
 3.3 V outputs, not short-circuit protected (the fast Pmods have no series resistors). A

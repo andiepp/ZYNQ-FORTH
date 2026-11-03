@@ -955,15 +955,16 @@ from then on the generator runs on its own, also while Forth computes or waits f
 The app draws patterns as a timing diagram and loads them for you (section 2.6).
 
 **Pinout.** The channels are on the two Pmod headers **JA** (channels 0..7) and **JB**
-(channels 8..15). A Pmod header has two rows of six pins; pin 1 is marked on the board
-next to the header. Pins 5 and 11 are GND, pins 6 and 12 are 3.3 V:
+(channels 8..15). A Pmod header has two rows of six pins. Drawn as the headers look on
+the board: 3.3 V (pins 6 and 12) and GND (pins 5 and 11) at the left, pin 1 at the right
+end of the upper row. The board view in the app shows them the same way (section 2.9):
 
 ```
           Pmod JA                               Pmod JB
- pin    1    2    3    4    5    6        1    2    3    4    5    6
-      CH0  CH1  CH2  CH3  GND  3V3      CH8  CH9  CH10 CH11 GND  3V3
-      CH4  CH5  CH6  CH7  GND  3V3      CH12 CH13 CH14 CH15 GND  3V3
- pin    7    8    9   10   11   12        7    8    9   10   11   12
+ pin    6    5    4    3    2    1        6    5    4    3    2    1
+      3V3  GND  CH3  CH2  CH1  CH0      3V3  GND  CH11 CH10 CH9  CH8
+      3V3  GND  CH7  CH6  CH5  CH4      3V3  GND  CH15 CH14 CH13 CH12
+ pin   12   11   10    9    8    7       12   11   10    9    8    7
 ```
 
 | Channel | Pmod pin | FPGA pin | | Channel | Pmod pin | FPGA pin |
