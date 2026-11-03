@@ -87,7 +87,7 @@ printed meanwhile and nobody fetched then appears first (docs/Protocol.md, "HASE
 ### First session
 
 ```
-[zynq-forth] 2.1, kernel 2398 words loaded and verified
+[zynq-forth] 2.2, kernel 2643 words loaded and verified
 
 HF16 Forth on Arty Z7-20
 2 3 + . 5  ok
