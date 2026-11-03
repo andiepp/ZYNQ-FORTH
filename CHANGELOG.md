@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.2.2 — 2026-11-03
 
 - App: the timing diagram starts with an **idle** column: the idle levels, switched by a
   click, and the edge from them into step 0; it replaces the idle check boxes. The channel
@@ -10,6 +10,7 @@
   `XILINX_VITIS`, or `\Xilinx\…\2023.2` on any drive) instead of a fixed `I:\Xilinx`.
 - Manual, README, Protocol.md: the serial port written as COMx, paths relative to the
   ZYNQ-FORTH folder, the release's flash script, and when editor settings reach the board.
+- Firmware, bitstream and kernel unchanged (2.2, the same BOOT.bin).
 
 ## 2.2.1 — 2026-11-03
 
