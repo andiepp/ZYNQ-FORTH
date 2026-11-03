@@ -41,9 +41,9 @@
 #include "forth_image.h"
 #include "mcnf_node.h"
 
-#define FIRMWARE_VERSION    "2.2"
+#define FIRMWARE_VERSION    "2.3"
 #define FIRMWARE_MAJOR      2               /* as the HASE node reports it (function 0x15) */
-#define FIRMWARE_MINOR      2
+#define FIRMWARE_MINOR      3
 #define PROTOCOL_VERSION    1
 
 #define UART                STDIN_BASEADDRESS   /* PS UART0, 115200 8N1 from the BSP */
@@ -95,6 +95,7 @@
 #define FN_DICT_PAGE        0x41
 #define FN_DATA_STACK       0x42
 #define FN_BOARD            0x43            /* the board registers, as the app's board request */
+#define FN_PATTERN          0x44            /* the pattern generator: the board request's pg line */
 #define FN_SOURCE_INFO      0x50
 #define FN_SOURCE_WRITE     0x51
 #define FN_SOURCE_COMMIT    0x52
@@ -800,6 +801,14 @@ static u8 device(u8 function, const u8 *params, u8 param_length, u8 response_len
             mcnf_write_u16(payload + 20 + 2 * i, Xil_In32(FORTH_BASE + REG_XADC) & 0xFFFF);
         }
         *payload_length = 84;
+        return MCNF_ERR_NONE;
+
+    /* the pattern generator, as the board request's pg line: PG_STATUS (u32: bits 27..16
+       current step, bits 6..0 status), PG_OUT (u32: bits 31..16 enable mask, 15..0 levels) */
+    case FN_PATTERN:
+        mcnf_write_u32(payload, Xil_In32(FORTH_BASE + REG_PG_STATUS));
+        mcnf_write_u32(payload + 4, Xil_In32(FORTH_BASE + REG_PG_OUT));
+        *payload_length = 8;
         return MCNF_ERR_NONE;
 
     case FN_SOURCE_INFO:

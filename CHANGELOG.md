@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Firmware 2.3: HASE mode gains device function 0x44, the pattern generator's registers
+  (the `board` answer's `pg` line, 8 bytes), for the HASE Forth-Lab panel (HASE ADR-0090).
+  Everything else unchanged.
+
 ## 2.2.2 — 2026-11-03
 
 - App: the timing diagram starts with an **idle** column: the idle levels, switched by a

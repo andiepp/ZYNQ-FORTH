@@ -177,10 +177,11 @@ terminal program or the app once it sends anything. The HASE host waits until th
 been quiet for 200 ms before its first frame, which leaves Forth's start-up output to the
 terminal. A stray `0xA1` typed into a terminal only shows a `!`.
 
-In HASE mode the node has type `AE.07.30.80` and reports its firmware version (2.1). Its
+In HASE mode the node has type `AE.07.30.80` and reports its firmware version (2.3). Its
 frames and device functions are those of HASE-Lab's Forth-Lab family: 0x15 (version),
 0x30–0x33 (status, restart, input, output), 0x40–0x42 (dictionary and data stack), 0x43
-(since 2.1: the registers of the `board` request, binary) and 0x50–0x55 (saved source).
+(since 2.1: the registers of the `board` request, binary, 84 bytes), 0x44 (since 2.3: the
+pattern generator, the `pg` line's two words as u32, 8 bytes) and 0x50–0x55 (saved source).
 The saved source is the same flash sector the `store` request writes.
 
 ## Example in Python
