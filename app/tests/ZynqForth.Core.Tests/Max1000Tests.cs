@@ -53,6 +53,21 @@ public class Max1000Tests
     }
 
     [Fact]
+    public void TemperatureAndAcceleration()
+    {
+        const string basic = "board 00000001\nports 00000000 00000000\npwm 00000000\n" +
+                             "adc 0000 0000 0000 0000 0000 0000 0000 0000 0000\n";
+        Max1000State s = Max1000State.Parse(basic + "temp 0E3C\naccel 001F FFF2 03F8\n");
+        Assert.Equal(0xE3C, s.TempCode);
+        Assert.InRange(s.Temperature!.Value, 32.6, 32.8);           // code 3644: Forth's .temp says 32.7 C
+        Assert.Equal((31, -14, 1016), s.Accel);
+
+        Max1000State old = Max1000State.Parse(basic);                // before MAX1000-FORTH 1.0
+        Assert.Null(old.Temperature);
+        Assert.Null(old.Accel);
+    }
+
+    [Fact]
     public void IncompleteBoardAnswerIsRefused() =>
         Assert.Throws<FormatException>(() => Max1000State.Parse("board 0\nports 0 0\npwm 0\nadc 0 0 0\n"));
 }

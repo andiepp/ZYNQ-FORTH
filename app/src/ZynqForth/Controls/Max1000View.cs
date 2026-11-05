@@ -88,7 +88,17 @@ public sealed class Max1000View : FrameworkElement
         dc.DrawEllipse(pressed ? capPressed : cap, outline, new Point(x + 12, y + 8), 8, 8);
         Label(dc, pressed ? "pressed" : "", x + 34, y + 2, text, 10);
 
-        Label(dc, "10M08 · 40 MHz · 16 KB RAM", 20, 164, text, 11);
+        // chip temperature and the accelerometer (MAX1000-FORTH 1.0 and later)
+        string chip = s?.Temperature is double t
+            ? string.Create(CultureInfo.InvariantCulture, $"10M08  {t:0.0} °C")
+            : "10M08";
+        Label(dc, chip, 20, 146, text, 11);
+        if (s?.Accel is var (ax, ay, az))
+        {
+            Label(dc, string.Create(CultureInfo.InvariantCulture,
+                      $"tilt  x {ax / 1000.0:0.00}  y {ay / 1000.0:0.00}  z {az / 1000.0:0.00} g"), 20, 164, text, 11);
+        }
+
         if (s is not null)
         {
             var channels = new List<string>();

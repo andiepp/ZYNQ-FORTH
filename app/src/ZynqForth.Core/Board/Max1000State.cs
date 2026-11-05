@@ -13,6 +13,8 @@ namespace ZynqForth.Board;
 /// ports 00280048 000000FF        pins 0-15, 16-31: bits 15..0 levels, 31..16 driven
 /// pwm 00000051                   as ZYNQ-FORTH: bits 3..0 enabled, 6 bits per channel's pin
 /// adc 0000 0800 ...              12-bit codes of ADC channels 0..8 (3.3 V full scale)
+/// temp 0E3C                      temperature diode code (MAX1000-FORTH 1.0 and later)
+/// accel 001F FFF2 03F8           LIS3DH x y z in mg, 16-bit two's complement (same)
 /// </code>
 /// </remarks>
 public sealed class Max1000State
@@ -25,9 +27,11 @@ public sealed class Max1000State
 
     private readonly ushort[] adc;
 
-    private Max1000State(uint board, uint[] ports, uint pwm, ushort[] adc)
+    private Max1000State(uint board, uint[] ports, uint pwm, ushort[] adc, int? tempCode, (int X, int Y, int Z)? accel)
     {
         this.adc = adc;
+        TempCode = tempCode;
+        Accel = accel;
         Leds = (int)(board & 0xFF);
         Button = ((board >> 16) & 1) != 0;
 
@@ -62,6 +66,18 @@ public sealed class Max1000State
 
     public IReadOnlyList<ShieldPin> Pins { get; }
 
+    /// <summary>The MAX 10's temperature diode code; null when the firmware does not send it.</summary>
+    public int? TempCode { get; }
+
+    /// <summary>
+    /// Chip temperature in °C, as Forth's <c>temp@</c>: linear between Intel's table points
+    /// −40 °C = 3798 and 96 °C = 3510, so approximate.
+    /// </summary>
+    public double? Temperature => TempCode is int c ? -40 + (3798 - c) * 136.0 / 288 : null;
+
+    /// <summary>The LIS3DH's acceleration in mg (x, y, z); null when the firmware does not send it.</summary>
+    public (int X, int Y, int Z)? Accel { get; }
+
     /// <summary>The 12-bit code of ADC channel 0..8.</summary>
     public int AdcCode(int channel) => adc[channel] & 0xFFF;
 
@@ -92,6 +108,10 @@ public sealed class Max1000State
             throw new FormatException("incomplete board answer");
         }
 
-        return new Max1000State(board, ports, pwm, adc);
+        int? temp = lines.TryGetValue("temp", out string[]? t) && t.Length > 0 ? (int)Hex(t[0]) : null;
+        (int, int, int)? accel = lines.TryGetValue("accel", out string[]? a) && a.Length >= 3
+            ? ((short)Hex(a[0]), (short)Hex(a[1]), (short)Hex(a[2]))
+            : null;
+        return new Max1000State(board, ports, pwm, adc, temp, accel);
     }
 }

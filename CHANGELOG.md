@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- App: the MAX1000 board view shows the chip temperature and the accelerometer's tilt (the
+  `temp` and `accel` lines of MAX1000-FORTH 1.0) and no longer a fixed clock/RAM label.
+
 ## 2.4 — 2026-11-05
 
 - App: also talks to **MAX1000-FORTH**, the HF16 Forth on the Trenz MAX1000 (a separate
