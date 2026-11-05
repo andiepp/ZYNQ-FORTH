@@ -52,7 +52,8 @@
                         <RadioButton Style="{StaticResource Zf.Tab}" GroupName="EditorTab" Content="Source" IsChecked="{Binding ShowSource}"
                                      ToolTip="The Forth source editor" />
                         <RadioButton Style="{StaticResource Zf.Tab}" GroupName="EditorTab" Content="Pattern" IsChecked="{Binding ShowPattern}"
-                                     ToolTip="The pattern generator: 16 channels on Pmod JA/JB in 5 ns steps" />
+                                     ToolTip="The pattern generator: 16 channels on Pmod JA/JB in 5 ns steps"
+                                     Visibility="{Binding IsZynqBoard, Converter={StaticResource VisibleWhen}}" />
                     </StackPanel>
                     <Grid>
                         <!-- source -->
@@ -327,7 +328,12 @@
         <Border Grid.Row="3" Style="{StaticResource Zf.PanelBox}" Padding="4" MaxHeight="260"
                 Visibility="{Binding ShowBoard, Converter={StaticResource VisibleWhen}}">
             <Viewbox Stretch="Uniform" StretchDirection="Both">
-                <controls:BoardView State="{Binding Board}" />
+                <Grid>
+                    <controls:BoardView State="{Binding Board}"
+                                        Visibility="{Binding IsZynqBoard, Converter={StaticResource VisibleWhen}}" />
+                    <controls:Max1000View State="{Binding Max1000Board}"
+                                          Visibility="{Binding IsMax1000, Converter={StaticResource VisibleWhen}}" />
+                </Grid>
             </Viewbox>
         </Border>
 

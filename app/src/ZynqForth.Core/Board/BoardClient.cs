@@ -16,12 +16,22 @@ public sealed class BoardClient(ForthLink link)
     /// <summary>The largest source the flash sector holds.</summary>
     public const int SourceMax = 65536 - 16;
 
-    /// <summary>What may be queued in the board's input ring before waiting for Forth.</summary>
-    private const int InputWindow = 16 * 1024;
-
     private static readonly TimeSpan FlashTimeout = TimeSpan.FromSeconds(30);
 
     public ForthLink Link { get; } = link ?? throw new ArgumentNullException(nameof(link));
+
+    /// <summary>
+    /// What may be queued in the board's input before waiting for Forth. The Zynq's ARM keeps
+    /// a 64 KB ring; on the MAX1000 the kernel answers a request only after the input queued
+    /// before it, so smaller pieces keep each status answer quick.
+    /// </summary>
+    public int InputWindow { get; set; } = 16 * 1024;
+
+    /// <summary>
+    /// Restart with Ctrl-R (and ESC to skip the saved source) instead of the restart request:
+    /// the MAX1000 resets its CPU in hardware on Ctrl-R, even while Forth runs a tight loop.
+    /// </summary>
+    public bool RestartByCtrlR { get; set; }
 
     /// <summary>Lines as Forth expects them: LF, CR LF and CR all become CR; tabs become spaces.</summary>
     public static byte[] ToForthText(string text)
@@ -56,7 +66,19 @@ public sealed class BoardClient(ForthLink link)
 
     public async Task<bool> EchoAsync(string word) => await TextAsync("echo " + word) == word;
 
-    public Task RestartAsync(bool skipAutostart) => TextAsync(skipAutostart ? "restart skip" : "restart");
+    public async Task<Max1000State> Max1000BoardAsync() => Max1000State.Parse(await TextAsync("board"));
+
+    public Task RestartAsync(bool skipAutostart)
+    {
+        if (RestartByCtrlR)
+        {
+            byte[] keys = skipAutostart ? [0x12, 0x1B] : [0x12];
+            Link.SendTerminal(keys);
+            return Task.CompletedTask;
+        }
+
+        return TextAsync(skipAutostart ? "restart skip" : "restart");
+    }
 
     /// <summary>The saved source, or null when none is stored.</summary>
     public async Task<string?> SourceAsync()

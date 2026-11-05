@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- App: also talks to **MAX1000-FORTH**, the HF16 Forth on the Trenz MAX1000 (a separate
+  project), which answers protocol 1 from its Forth kernel. The `version` answer's firmware
+  name selects the board: a MAX1000 board view (8 LEDs, user button, D0–D14, PIO1–PIO8,
+  AIN0–AIN7 and AIN), no Pattern tab, restart by Ctrl-R (plus ESC to skip the saved source),
+  and text sent in 4 KB pieces. The app remembers the board type of the last connection.
+  ZYNQ-FORTH boards behave as before.
+
 ## 2.3 — 2026-11-03
 
 - Firmware 2.3: HASE mode gains device function 0x44, the pattern generator's registers

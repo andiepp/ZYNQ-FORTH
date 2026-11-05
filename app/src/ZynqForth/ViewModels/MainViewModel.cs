@@ -56,6 +56,8 @@ public sealed class MainViewModel : ObservableObject
     private string wordsSummary = "";
     private string stackSummary = "";
     private BoardState? board;
+    private Max1000State? max1000Board;
+    private BoardKind boardKind;
     private double progress;
 
     public MainViewModel(Preferences preferences)
@@ -63,7 +65,9 @@ public sealed class MainViewModel : ObservableObject
         this.preferences = preferences;
         selectedSkin = Skins.Normalize(preferences["skin"]);
         showBoard = preferences["board"] is { } b ? b == "on" : Skins.ShowsBoard(selectedSkin);
-        showPattern = preferences["editor"] == "pattern";
+        // the board type of the last connection, so the board view does not jump at the next one
+        boardKind = preferences["boardkind"] == "max1000" ? BoardKind.Max1000 : BoardKind.Zynq;
+        showPattern = preferences["editor"] == "pattern" && boardKind == BoardKind.Zynq;
 
         Editor.Message += SetStatus;
         Patterns.Message += SetStatus;
@@ -224,6 +228,29 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The board is read while it is shown, and for the pattern editor's playing step.</summary>
     private void UpdateBoardTimer() => boardTimer.IsEnabled = (ShowBoard || ShowPattern) && IsConnected;
 
+    /// <summary>The board of the current (or last) connection is a Trenz MAX1000 (MAX1000-FORTH).</summary>
+    public bool IsMax1000 => boardKind == BoardKind.Max1000;
+
+    /// <summary>The board is an Arty Z7-20: board view and pattern generator of ZYNQ-FORTH.</summary>
+    public bool IsZynqBoard => boardKind == BoardKind.Zynq;
+
+    private void SetBoardKind(BoardKind kind)
+    {
+        if (boardKind == kind)
+        {
+            return;
+        }
+
+        boardKind = kind;
+        preferences["boardkind"] = kind == BoardKind.Max1000 ? "max1000" : "zynq";
+        OnPropertyChanged(nameof(IsMax1000));
+        OnPropertyChanged(nameof(IsZynqBoard));
+        if (kind == BoardKind.Max1000)
+        {
+            ShowPattern = false;     // the MAX1000 has no pattern generator
+        }
+    }
+
     public bool IsConnected
     {
         get => isConnected;
@@ -334,6 +361,13 @@ public sealed class MainViewModel : ObservableObject
         private set => Set(ref board, value);
     }
 
+    /// <summary>The MAX1000's I/O state (null for an Arty Z7 or when not connected).</summary>
+    public Max1000State? Max1000Board
+    {
+        get => max1000Board;
+        private set => Set(ref max1000Board, value);
+    }
+
     /// <summary>0..1 while a source is sent, else 0.</summary>
     public double Progress
     {
@@ -381,7 +415,14 @@ public sealed class MainViewModel : ObservableObject
         {
             BoardVersion version = await client.VersionAsync();
             preferences["port"] = port;
-            ConnectionText = $"{port} · ZYNQ-FORTH firmware {version.Firmware} · kernel image {version.KernelWords} cells";
+            SetBoardKind(version.Kind);
+            if (version.Kind == BoardKind.Max1000)
+            {
+                client.InputWindow = 4 * 1024;
+                client.RestartByCtrlR = true;
+            }
+
+            ConnectionText = $"{port} · {version.Product} firmware {version.Firmware} · kernel image {version.KernelWords} cells";
             SetStatus("Connected. Type Forth below, or run the editor's text with F5.", false);
             client.SendLine("");    // Forth answers with its prompt
             statusTimer.Start();
@@ -392,7 +433,7 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception exception) when (exception is LinkException or BoardRefusedException)
         {
-            Disconnect($"No ZYNQ-FORTH answer on {port}. Is the board running the ZYNQ-FORTH firmware?", error: true);
+            Disconnect($"No answer on {port}. Is the board running ZYNQ-FORTH or MAX1000-FORTH?", error: true);
         }
     }
 
@@ -409,6 +450,7 @@ public sealed class MainViewModel : ObservableObject
         ConnectionText = "Not connected";
         ForthState = "";
         Board = null;
+        Max1000Board = null;
         Patterns.PlayingStep = null;
         FlushTerminal();
         SetStatus(message, error);
@@ -712,6 +754,12 @@ public sealed class MainViewModel : ObservableObject
         boardPolling = true;
         try
         {
+            if (IsMax1000)
+            {
+                Max1000Board = await client.Max1000BoardAsync();
+                return;
+            }
+
             Board = await client.BoardAsync();
             Patterns.PlayingStep = Board.Pattern is { Running: true } pg ? pg.Step : null;
         }

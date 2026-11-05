@@ -2,9 +2,21 @@ using System.Globalization;
 
 namespace ZynqForth.Board;
 
-/// <summary>The <c>version</c> answer.</summary>
-public sealed record BoardVersion(string Firmware, int Protocol, int KernelWords, ushort KernelChecksum)
+/// <summary>Which board answers: the Arty Z7-20 (ZYNQ-FORTH) or the Trenz MAX1000 (MAX1000-FORTH).</summary>
+public enum BoardKind { Zynq, Max1000 }
+
+/// <summary>
+/// The <c>version</c> answer. <paramref name="Name"/> is the firmware's name from the
+/// <c>firmware</c> line: <c>zynq-forth</c> or <c>max1000-forth</c>.
+/// </summary>
+public sealed record BoardVersion(string Firmware, int Protocol, int KernelWords, ushort KernelChecksum,
+                                  string Name = "zynq-forth")
 {
+    public BoardKind Kind => Name == "max1000-forth" ? BoardKind.Max1000 : BoardKind.Zynq;
+
+    /// <summary>"ZYNQ-FORTH" or "MAX1000-FORTH", for messages.</summary>
+    public string Product => Kind == BoardKind.Max1000 ? "MAX1000-FORTH" : "ZYNQ-FORTH";
+
     public static BoardVersion Parse(string text)
     {
         Dictionary<string, string[]> lines = Lines(text);
@@ -14,7 +26,8 @@ public sealed record BoardVersion(string Firmware, int Protocol, int KernelWords
             firmware.Length > 1 ? firmware[1] : "?",
             int.TryParse(lines.GetValueOrDefault("protocol", ["0"])[0], out int protocol) ? protocol : 0,
             int.TryParse(kernel[0], out int words) ? words : 0,
-            kernel.Length > 1 && ushort.TryParse(kernel[1], NumberStyles.HexNumber, null, out ushort sum) ? sum : (ushort)0);
+            kernel.Length > 1 && ushort.TryParse(kernel[1], NumberStyles.HexNumber, null, out ushort sum) ? sum : (ushort)0,
+            firmware.Length > 0 ? firmware[0] : "?");
     }
 
     internal static Dictionary<string, string[]> Lines(string text)

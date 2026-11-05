@@ -184,6 +184,14 @@ frames and device functions are those of HASE-Lab's Forth-Lab family: 0x15 (vers
 pattern generator, the `pg` line's two words as u32, 8 bytes) and 0x50–0x55 (saved source).
 The saved source is the same flash sector the `store` request writes.
 
+## MAX1000-FORTH
+
+MAX1000-FORTH, the same HF16 Forth on a Trenz MAX1000, speaks protocol 1 too, but its Forth
+kernel answers the requests itself: at the prompt and while a program waits (`ms`, `key?`,
+`key`, printing). `version` says `firmware max1000-forth <version>`. Its `board` answer has
+its own lines (`board`, two `ports` words, `pwm`, `adc` with nine 12-bit codes); the app
+picks the matching board view from the firmware name. It has no HASE mode.
+
 ## Example in Python
 
 `tools/zforth.py` is a complete client (it needs pyserial):
