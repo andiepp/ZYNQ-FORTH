@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.4.2 — 2026-11-05
 
 - App: the **Manual** button (F1) opens the MAX1000-FORTH manual when the board of the
   current or last connection is a MAX1000; the app carries a copy of it
   (`docs/max1000/MAX1000-FORTH-Manual.pdf`, from MAX1000-FORTH 1.0).
+- Firmware, bitstream and kernel are unchanged (2.3).
 
 ## 2.4.1 — 2026-11-05
 
