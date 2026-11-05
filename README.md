@@ -21,8 +21,9 @@ Windows app to program it.
 - One Forth source can be **saved in flash** and runs at every start (hold BTN3 to skip it).
 - The **app**: editor, terminal, data stack, dictionary, saved source, a pattern editor
   (timing diagram), a live view of the board, and five skins: IDE dark, IDE light, Green phosphor, Amber and Lab panel.
-  Since 2.4 it also drives **MAX1000-FORTH**, the same HF16 Forth on a Trenz MAX1000
-  (Intel MAX 10) board, with its own board view (manual, section 2.11).
+  Since 2.4 it also drives [**MAX1000-FORTH**](https://github.com/andiepp/MAX1000-FORTH),
+  the same HF16 Forth on a Trenz MAX1000 (Intel MAX 10) board, with its own board view
+  (manual, section 2.11).
 
 | IDE dark | Green phosphor |
 |---|---|

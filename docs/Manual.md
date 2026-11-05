@@ -375,14 +375,16 @@ hello
 ### 2.11 The app with a MAX1000
 
 Since 2.4 the app also works with **MAX1000-FORTH**, the same HF16 Forth on a Trenz MAX1000
-(Intel MAX 10) board, a separate project. Connect to the MAX1000's serial port as above: the
+(Intel MAX 10) board, a separate project:
+[andiepp/MAX1000-FORTH](https://github.com/andiepp/MAX1000-FORTH). Connect to the MAX1000's serial port as above: the
 app recognises the board by its `version` answer and the top bar says *MAX1000-FORTH
 firmware …*. The terminal, editor, data stack, dictionary and saved source work as
 described in this chapter. The differences:
 
 - The board view shows the MAX1000: the 8 user LEDs, the user button, the digital pins
   D0..D14 and PIO1..PIO8 (Forth's pins 0–14 and 16–23), the PWM channels, and the analog
-  inputs AIN0..AIN7 and AIN as bars with their voltage (0–3.3 V).
+  inputs AIN0..AIN7 and AIN as bars with their voltage (0–3.3 V). Since 2.4.1 it also shows
+  the chip temperature and the accelerometer's tilt in g (MAX1000-FORTH 1.0 and later).
 - There is no Pattern tab: the MAX1000 has no pattern generator.
 - On the MAX1000, Forth itself answers the app, not a second processor. Answers come at
   the prompt and while a program waits in `ms`, polls `key?`, reads `key` or prints. A word
@@ -392,7 +394,8 @@ described in this chapter. The differences:
   *Restart clean* adds ESC, which skips the saved source. On the board, holding the user
   button during the start skips it too.
 
-The MAX1000's own words (pins, ADC, flash) are documented in the MAX1000-FORTH project.
+The MAX1000's own words (pins, ADC, temperature, accelerometer, flash) are documented in the
+[MAX1000-FORTH manual](https://github.com/andiepp/MAX1000-FORTH/blob/main/docs/Manual.md).
 
 ---
 
@@ -767,7 +770,8 @@ table 2 cells + ? 4  ok
 | `." text"` | `( -- )` | Compile only: print `text` when the definition runs. |
 | `.( text)` | `( -- )` | Print `text` immediately, in a definition or at the terminal. |
 
-Digits above 9 print as capital letters: `hex 255 .` gives `FF`.
+Digits above 9 print as capital letters: `255 hex . decimal` gives `FF`. (In `hex 255 .`
+the number is already read in base 16, so it prints `255`.)
 
 ```
 : hello ." Hello, Arty!" cr ;

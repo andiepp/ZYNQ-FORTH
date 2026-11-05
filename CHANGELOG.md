@@ -1,9 +1,13 @@
 # Changelog
 
-## Unreleased
+## 2.4.1 — 2026-11-05
 
 - App: the MAX1000 board view shows the chip temperature and the accelerometer's tilt (the
   `temp` and `accel` lines of MAX1000-FORTH 1.0) and no longer a fixed clock/RAM label.
+- Docs: README and manual section 2.11 link the now public
+  [MAX1000-FORTH](https://github.com/andiepp/MAX1000-FORTH) project; section 5.8's hex
+  example corrected (`255 hex .` prints `FF`).
+- Firmware, bitstream and kernel are unchanged (2.3).
 
 ## 2.4 — 2026-11-05
 
