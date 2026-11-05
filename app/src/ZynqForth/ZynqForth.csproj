@@ -7,11 +7,18 @@
     <RootNamespace>ZynqForth</RootNamespace>
     <AssemblyName>ZynqForth</AssemblyName>
     <AssemblyTitle>ZYNQ-FORTH</AssemblyTitle>
+    <!-- the exe's icon (Explorer, taskbar); app/tools/make_icon.py draws it -->
+    <ApplicationIcon>ZynqForth.ico</ApplicationIcon>
     <Description>ZYNQ-FORTH: terminal, editor, dictionary and board view for the HF16 Forth on the Arty Z7-20.</Description>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ZynqForth.Core\ZynqForth.Core.csproj" />
+  </ItemGroup>
+
+  <!-- the window's icon (title bar, Alt-Tab) -->
+  <ItemGroup>
+    <Resource Include="ZynqForth.ico" />
   </ItemGroup>
 
   <!-- the user manual, opened by the Manual button (tools/manual_pdf.py builds it) -->

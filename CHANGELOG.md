@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- App: its own icon, an FPGA chip with "FORTH" and "16" (window, taskbar, Explorer);
+  `app/tools/make_icon.py` draws it, with simplified frames for 16 to 32 px.
+
 ## 2.4.2 — 2026-11-05
 
 - App: the **Manual** button (F1) opens the MAX1000-FORTH manual when the board of the
