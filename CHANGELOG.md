@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.4 — 2026-11-05
 
 - App: also talks to **MAX1000-FORTH**, the HF16 Forth on the Trenz MAX1000 (a separate
   project), which answers protocol 1 from its Forth kernel. The `version` answer's firmware
@@ -8,6 +8,9 @@
   AIN0–AIN7 and AIN), no Pattern tab, restart by Ctrl-R (plus ESC to skip the saved source),
   and text sent in 4 KB pieces. The app remembers the board type of the last connection.
   ZYNQ-FORTH boards behave as before.
+- Manual: section 2.11, the app with a MAX1000. Protocol.md: section MAX1000-FORTH.
+- Firmware, bitstream and kernel are unchanged (2.3); the firmware zip carries the 2.3
+  `BOOT.bin`.
 
 ## 2.3 — 2026-11-03
 
