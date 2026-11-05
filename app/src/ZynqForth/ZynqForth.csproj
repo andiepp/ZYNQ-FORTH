@@ -17,6 +17,8 @@
   <!-- the user manual, opened by the Manual button (tools/manual_pdf.py builds it) -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\..\docs\Manual.pdf" LogicalName="ZynqForth.Manual.pdf" />
+    <!-- MAX1000-FORTH's manual (a copy), opened instead when the board is a MAX1000 -->
+    <EmbeddedResource Include="..\..\..\docs\max1000\MAX1000-FORTH-Manual.pdf" LogicalName="ZynqForth.Max1000Manual.pdf" />
   </ItemGroup>
 
 </Project>

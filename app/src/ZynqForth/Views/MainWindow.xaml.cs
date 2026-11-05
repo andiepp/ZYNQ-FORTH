@@ -108,15 +108,19 @@ public partial class MainWindow : Window, IUserDialogs
     private void Manual_Click(object sender, RoutedEventArgs e) => OpenManual();
 
     /// <summary>
-    /// Opens the manual built into the app in the PDF viewer. It is written to
-    /// %LocalAppData%\ZYNQ-FORTH when missing or different; if a viewer still holds an older
+    /// Opens the manual built into the app in the PDF viewer: MAX1000-FORTH's when the board
+    /// of the current (or last) connection is a MAX1000, ZYNQ-FORTH's otherwise. It is written
+    /// to %LocalAppData%\ZYNQ-FORTH when missing or different; if a viewer still holds an older
     /// copy open, the new one gets a numbered name.
     /// </summary>
     private void OpenManual()
     {
+        bool max1000 = ViewModel.IsMax1000;
+        string resource = max1000 ? "ZynqForth.Max1000Manual.pdf" : "ZynqForth.Manual.pdf";
+        string name = max1000 ? "MAX1000-FORTH Manual" : "ZYNQ-FORTH Manual";
         try
         {
-            using Stream? manual = typeof(MainWindow).Assembly.GetManifestResourceStream("ZynqForth.Manual.pdf");
+            using Stream? manual = typeof(MainWindow).Assembly.GetManifestResourceStream(resource);
             if (manual is null)
             {
                 throw new FileNotFoundException("This build of the app contains no manual.");
@@ -126,7 +130,7 @@ public partial class MainWindow : Window, IUserDialogs
             manual.ReadExactly(content);
             string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ZYNQ-FORTH");
             Directory.CreateDirectory(folder);
-            string path = Path.Combine(folder, "ZYNQ-FORTH Manual.pdf");
+            string path = Path.Combine(folder, name + ".pdf");
             for (int n = 2; File.Exists(path) && !File.ReadAllBytes(path).AsSpan().SequenceEqual(content); n++)
             {
                 try
@@ -135,7 +139,7 @@ public partial class MainWindow : Window, IUserDialogs
                 }
                 catch (IOException) when (n < 10)
                 {
-                    path = Path.Combine(folder, $"ZYNQ-FORTH Manual ({n}).pdf");
+                    path = Path.Combine(folder, $"{name} ({n}).pdf");
                 }
             }
 
