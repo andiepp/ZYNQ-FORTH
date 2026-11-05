@@ -1,9 +1,10 @@
 # Changelog
 
-## Unreleased
+## 2.4.3 — 2026-11-05
 
 - App: its own icon, an FPGA chip with "FORTH" and "16" (window, taskbar, Explorer);
   `app/tools/make_icon.py` draws it, with simplified frames for 16 to 32 px.
+- Firmware, bitstream and kernel are unchanged (2.3).
 
 ## 2.4.2 — 2026-11-05
 
