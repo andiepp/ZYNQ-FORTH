@@ -1,10 +1,11 @@
 # Changelog
 
-## Unreleased
+## 2.4.4 — 2026-11-06
 
 - App: the MAX1000-FORTH manual it carries (`docs/max1000/MAX1000-FORTH-Manual.pdf`) is
   now the one from MAX1000-FORTH 1.2: DDS square-wave generator (section 5.14), the
   single-LED words `led-on`, `led-off` and `led-toggle`, detailed contents.
+- Firmware, bitstream and kernel are unchanged (2.3).
 
 ## 2.4.3 — 2026-11-05
 

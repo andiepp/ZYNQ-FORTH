@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <Version>2.4.3</Version>
+    <Version>2.4.4</Version>
     <Authors>andiepp</Authors>
     <Product>ZYNQ-FORTH</Product>
     <Copyright>Copyright (c) 2026 andiepp</Copyright>
