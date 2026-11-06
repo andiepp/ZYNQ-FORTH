@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- App: the MAX1000-FORTH manual it carries (`docs/max1000/MAX1000-FORTH-Manual.pdf`) is
+  now the one from MAX1000-FORTH 1.2: DDS square-wave generator (section 5.14), the
+  single-LED words `led-on`, `led-off` and `led-toggle`, detailed contents.
+
 ## 2.4.3 — 2026-11-05
 
 - App: its own icon, an FPGA chip with "FORTH" and "16" (window, taskbar, Explorer);
